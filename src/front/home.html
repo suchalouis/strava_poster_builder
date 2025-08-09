@@ -412,13 +412,13 @@
 
         async function loadAthleteStats() {
             try {
-                const stats = await makeApiCall('/athlete/stats');
+                const stats = await makeBackendApiCall('/api/athlete/stats');
                 
-                // Afficher les statistiques
-                document.getElementById('total-activities').textContent = stats.all_ride_totals.count + stats.all_run_totals.count;
-                document.getElementById('total-distance').textContent = formatDistance(stats.all_ride_totals.distance + stats.all_run_totals.distance);
-                document.getElementById('total-time').textContent = formatTime(stats.all_ride_totals.moving_time + stats.all_run_totals.moving_time);
-                document.getElementById('elevation-gain').textContent = formatElevation(stats.all_ride_totals.elevation_gain + stats.all_run_totals.elevation_gain);
+                // Afficher les statistiques (maintenant déjà formatées par le backend)
+                document.getElementById('total-activities').textContent = stats.total_activities;
+                document.getElementById('total-distance').textContent = stats.total_distance;
+                document.getElementById('total-time').textContent = stats.total_time;
+                document.getElementById('elevation-gain').textContent = stats.total_elevation;
                 
                 // Masquer le loading et afficher le contenu
                 document.getElementById('stats-loading').style.display = 'none';
@@ -431,20 +431,20 @@
 
         async function loadRecentActivities() {
             try {
-                const activities = await makeApiCall('/athlete/activities?per_page=10');
+                const data = await makeBackendApiCall('/api/athlete/activities/recent?count=10');
                 
                 const activitiesList = document.getElementById('activities-list');
                 activitiesList.innerHTML = '';
                 
-                activities.forEach(activity => {
+                data.activities.forEach(activity => {
                     const activityEl = document.createElement('div');
                     activityEl.className = 'activity-item';
                     activityEl.innerHTML = `
                         <div>
-                            <div class="activity-type">${getActivityIcon(activity.type)} ${activity.name}</div>
-                            <div class="activity-date">${formatDate(activity.start_date)}</div>
+                            <div class="activity-type">${activity.icon} ${activity.name}</div>
+                            <div class="activity-date">${activity.formatted_date}</div>
                         </div>
-                        <div class="activity-distance">${formatDistance(activity.distance)}</div>
+                        <div class="activity-distance">${activity.distance}</div>
                     `;
                     activitiesList.appendChild(activityEl);
                 });
@@ -478,6 +478,35 @@
 
             if (!response.ok) {
                 throw new Error(`Erreur API: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        async function makeBackendApiCall(endpoint) {
+            // Nouvelle fonction pour appeler notre backend Python
+            let token = authState.accessToken;
+
+            // Vérifier si le token a expiré
+            if (authState.expiresAt && Date.now() / 1000 >= authState.expiresAt - 300) {
+                try {
+                    token = await refreshAccessToken();
+                } catch (error) {
+                    throw new Error('Token expiré et impossible de le rafraîchir');
+                }
+            }
+
+            const response = await fetch(`${config.backendUrl}${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-Refresh-Token': authState.refreshToken || '',
+                    'X-Expires-At': authState.expiresAt?.toString() || '',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur API Backend: ${response.status}`);
             }
 
             return response.json();
@@ -580,10 +609,11 @@
 
         async function testAthleteAPI() {
             try {
-                const athlete = await makeApiCall('/athlete');
-                alert(`API Test réussi !\nAthlète: ${athlete.firstname} ${athlete.lastname}\nActivités: ${athlete.activity_count}`);
+                // Tester notre nouvelle API backend
+                const stats = await makeBackendApiCall('/api/athlete/stats');
+                alert(`API Backend Test réussi !\nActivités totales: ${stats.total_activities}\nDistance totale: ${stats.total_distance}\nTemps total: ${stats.total_time}`);
             } catch (error) {
-                alert('Erreur API: ' + error.message);
+                alert('Erreur API Backend: ' + error.message);
             }
         }
 
