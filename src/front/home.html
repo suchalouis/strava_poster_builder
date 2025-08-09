@@ -484,26 +484,20 @@
         }
 
         async function makeBackendApiCall(endpoint) {
-            // Nouvelle fonction pour appeler notre backend Python
-            let token = authState.accessToken;
-
-            // Vérifier si le token a expiré
-            if (authState.expiresAt && Date.now() / 1000 >= authState.expiresAt - 300) {
-                try {
-                    token = await refreshAccessToken();
-                } catch (error) {
-                    throw new Error('Token expiré et impossible de le rafraîchir');
-                }
-            }
-
+            // Appel sécurisé au backend avec credentials (cookies de session)
             const response = await fetch(`${config.backendUrl}${endpoint}`, {
+                method: 'GET',
+                credentials: 'include',  // Inclure les cookies de session
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-Refresh-Token': authState.refreshToken || '',
-                    'X-Expires-At': authState.expiresAt?.toString() || '',
                     'Content-Type': 'application/json'
                 }
             });
+
+            if (response.status === 401) {
+                // Rediriger vers la page d'auth si non authentifié
+                window.location.href = '/';
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error(`Erreur API Backend: ${response.status}`);
@@ -609,12 +603,26 @@
 
         async function testAthleteAPI() {
             try {
-                // Tester notre nouvelle API backend
+                // Tester notre nouvelle API backend sécurisée
                 const stats = await makeBackendApiCall('/api/athlete/stats');
                 alert(`API Backend Test réussi !\nActivités totales: ${stats.total_activities}\nDistance totale: ${stats.total_distance}\nTemps total: ${stats.total_time}`);
             } catch (error) {
                 alert('Erreur API Backend: ' + error.message);
             }
+        }
+
+        function logout() {
+            // Déconnexion côté serveur
+            fetch(`${config.backendUrl}/auth/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            }).then(() => {
+                // Rediriger vers la page d'auth
+                window.location.href = '/';
+            }).catch(error => {
+                console.error('Erreur lors de la déconnexion:', error);
+                window.location.href = '/';
+            });
         }
 
         function refreshData() {

@@ -7,6 +7,7 @@ import os
 import secrets
 from flask import Flask
 from flask_cors import CORS
+from flask_session import Session
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,10 +15,34 @@ load_dotenv()
 def create_app():
     """Application factory pattern"""
     app = Flask(__name__)
-    app.secret_key = secrets.token_hex(32)
     
-    # Enable CORS for all routes
-    CORS(app, origins=["file://", "http://localhost:*", "http://127.0.0.1:*"])
+    # Security configuration
+    app.config['SECRET_KEY'] = os.getenv('SESSION_SECRET_KEY', secrets.token_hex(32))
+    app.config['SESSION_TYPE'] = 'redis'
+    app.config['SESSION_REDIS'] = None  # Will be set up in security manager
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_USE_SIGNER'] = True
+    app.config['SESSION_COOKIE_SECURE'] = not app.debug  # HTTPS only in production
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_NAME'] = 'strava_session'
+    
+    # Security headers
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        if not app.debug:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        return response
+    
+    # Enable CORS for all routes (with credentials for cookies)
+    CORS(app, origins=["file://", "http://localhost:*", "http://127.0.0.1:*"], 
+         supports_credentials=True)
+    
+    # Initialize session
+    Session(app)
     
     # Import and register routes
     from src.strava.auth_server import register_routes

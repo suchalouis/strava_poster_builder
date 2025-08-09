@@ -7,11 +7,12 @@ Handles OAuth flow securely with environment variables
 import os
 import secrets
 import urllib.parse
-from flask import request, jsonify, render_template_string
+from flask import request, jsonify, render_template_string, session, make_response, redirect
 from dotenv import load_dotenv
 import requests
 from .strava_client import StravaClient
 from .data_processor import StravaDataProcessor
+from ..security import SecurityManager
 
 load_dotenv()
 
@@ -24,8 +25,8 @@ STRAVA_REDIRECT_URI = os.getenv('STRAVA_REDIRECT_URI', 'http://localhost:8000/au
 STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize'
 STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token'
 
-# In-memory storage for OAuth states (use Redis/database in production)
-oauth_states = {}
+# Security manager instance
+security_manager = SecurityManager()
 
 # Instances globales
 strava_client = StravaClient()
@@ -82,7 +83,11 @@ def register_routes(app):
         
         # Generate state for CSRF protection
         state = secrets.token_urlsafe(32)
-        oauth_states[state] = {'timestamp': secrets.SystemRandom().randint(1000000, 9999999)}
+        security_manager.store_oauth_state(state)
+        
+        # Generate CSRF token for session
+        csrf_token = security_manager.generate_csrf_token()
+        session['csrf_token'] = csrf_token
         
         # Build authorization URL
         params = {
@@ -96,7 +101,7 @@ def register_routes(app):
         
         auth_url = f"{STRAVA_AUTH_URL}?{urllib.parse.urlencode(params)}"
         
-        return jsonify({'auth_url': auth_url, 'state': state})
+        return jsonify({'auth_url': auth_url, 'state': state, 'csrf_token': csrf_token})
 
     @app.route('/auth/callback')
     def auth_callback():
@@ -130,16 +135,18 @@ def register_routes(app):
         if not code or not state:
             return jsonify({'error': 'Missing authorization code or state'}), 400
         
-        # Verify state
-        if state not in oauth_states:
+        # Verify and consume OAuth state
+        if not security_manager.verify_oauth_state(state):
             return jsonify({'error': 'Invalid state parameter'}), 400
-        
-        # Remove used state
-        del oauth_states[state]
         
         try:
             # Exchange code for tokens
             token_data = exchange_code_for_tokens(code)
+            
+            # Store tokens securely in session
+            secure_session_data = security_manager.create_secure_session_data(token_data)
+            session['auth_data'] = secure_session_data
+            session['authenticated'] = True
             
             # Return popup callback page that sends message to parent window
             return render_template_string("""
@@ -178,19 +185,14 @@ def register_routes(app):
                 </div>
                 
                 <script>
-                    // Send success message to parent window
-                    const tokenData = {
-                        access_token: '{{ access_token }}',
-                        refresh_token: '{{ refresh_token }}',
-                        expires_at: {{ expires_at }},
-                        athlete: {{ athlete | tojson }}
-                    };
-                    
                     if (window.opener) {
-                        // Send message to parent window
+                        // Send success message to parent window (no tokens exposed)
                         window.opener.postMessage({
                             type: 'strava_auth_success',
-                            data: tokenData
+                            data: {
+                                athlete_name: '{{ athlete_name }}',
+                                authenticated: true
+                            }
                         }, '{{ origin }}');
                         
                         // Close popup after short delay
@@ -198,18 +200,14 @@ def register_routes(app):
                             window.close();
                         }, 1500);
                     } else {
-                        // Fallback: store in localStorage and redirect
-                        localStorage.setItem('strava_auth', JSON.stringify(tokenData));
+                        // Redirect to home page
                         window.location.href = '/home';
                     }
                 </script>
             </body>
             </html>
             """, 
-            access_token=token_data['access_token'],
-            refresh_token=token_data['refresh_token'],
-            expires_at=token_data['expires_at'],
-            athlete=token_data['athlete'],
+            athlete_name=token_data.get('athlete', {}).get('firstname', 'Utilisateur'),
             origin='http://localhost:8000'
             )
             
@@ -258,23 +256,29 @@ def register_routes(app):
 
     # === NOUVEAUX ENDPOINTS API POUR LES DONNÉES ===
 
+    def require_auth(f):
+        """Decorator to require authentication"""
+        def decorated_function(*args, **kwargs):
+            if not session.get('authenticated') or not session.get('auth_data'):
+                return jsonify({'error': 'Authentication required'}), 401
+            return f(*args, **kwargs)
+        decorated_function.__name__ = f.__name__
+        return decorated_function
+    
     @app.route('/api/athlete/stats')
+    @require_auth
     def get_athlete_stats():
         """Récupérer et traiter les statistiques de l'athlète"""
         try:
-            # Récupérer les tokens depuis les en-têtes
-            access_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-            refresh_token = request.headers.get('X-Refresh-Token', '')
-            expires_at = request.headers.get('X-Expires-At', '')
-            
-            if not access_token:
-                return jsonify({'error': 'Token d\'accès requis'}), 401
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
                 
             # Configurer le client Strava
             strava_client.set_tokens(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_at=int(expires_at) if expires_at else None
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
             )
             
             # Récupérer les statistiques
@@ -287,16 +291,13 @@ def register_routes(app):
             return jsonify({'error': str(e)}), 500
 
     @app.route('/api/athlete/activities')
+    @require_auth
     def get_athlete_activities():
         """Récupérer et traiter les activités de l'athlète"""
         try:
-            # Récupérer les tokens depuis les en-têtes
-            access_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-            refresh_token = request.headers.get('X-Refresh-Token', '')
-            expires_at = request.headers.get('X-Expires-At', '')
-            
-            if not access_token:
-                return jsonify({'error': 'Token d\'accès requis'}), 401
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
                 
             # Paramètres optionnels
             per_page = int(request.args.get('per_page', 30))
@@ -306,9 +307,9 @@ def register_routes(app):
             
             # Configurer le client Strava
             strava_client.set_tokens(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_at=int(expires_at) if expires_at else None
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
             )
             
             # Récupérer les activités
@@ -328,15 +329,13 @@ def register_routes(app):
             return jsonify({'error': str(e)}), 500
 
     @app.route('/api/athlete/activities/summary')
+    @require_auth
     def get_activities_summary():
         """Récupérer un résumé complet des activités"""
         try:
-            access_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-            refresh_token = request.headers.get('X-Refresh-Token', '')
-            expires_at = request.headers.get('X-Expires-At', '')
-            
-            if not access_token:
-                return jsonify({'error': 'Token d\'accès requis'}), 401
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
             
             # Paramètres optionnels
             year = request.args.get('year')
@@ -345,9 +344,9 @@ def register_routes(app):
             
             # Configurer le client Strava
             strava_client.set_tokens(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_at=int(expires_at) if expires_at else None
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
             )
             
             # Récupérer les activités selon les paramètres
@@ -375,23 +374,21 @@ def register_routes(app):
             return jsonify({'error': str(e)}), 500
 
     @app.route('/api/athlete/activities/recent')
+    @require_auth
     def get_recent_activities():
         """Récupérer les activités récentes formatées"""
         try:
-            access_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-            refresh_token = request.headers.get('X-Refresh-Token', '')
-            expires_at = request.headers.get('X-Expires-At', '')
-            
-            if not access_token:
-                return jsonify({'error': 'Token d\'accès requis'}), 401
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
                 
             count = int(request.args.get('count', 10))
             
             # Configurer le client Strava
             strava_client.set_tokens(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_at=int(expires_at) if expires_at else None
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
             )
             
             # Récupérer les activités récentes
@@ -416,6 +413,21 @@ def register_routes(app):
             
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+    @app.route('/auth/logout', methods=['POST'])
+    def logout():
+        """Secure logout"""
+        session.clear()
+        return jsonify({'success': True})
+
+    @app.route('/auth/status')
+    def auth_status():
+        """Check authentication status"""
+        authenticated = session.get('authenticated', False)
+        if authenticated and session.get('auth_data'):
+            return jsonify({'authenticated': True})
+        else:
+            return jsonify({'authenticated': False}), 401
 
 def exchange_code_for_tokens(code):
     """Exchange authorization code for access tokens"""
