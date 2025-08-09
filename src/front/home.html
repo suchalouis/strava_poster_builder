@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strava Poster Builder - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #fc4c02, #ff6b35);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .strava-icon {
+            width: 40px;
+            height: 40px;
+            background: #fc4c02;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #fc4c02;
+        }
+
+        .btn {
+            background: #fc4c02;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background: #e63e00;
+            transform: translateY(-1px);
+        }
+
+        .btn.secondary {
+            background: transparent;
+            border: 2px solid #fc4c02;
+            color: #fc4c02;
+        }
+
+        .btn.secondary:hover {
+            background: #fc4c02;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #fc4c02;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #fc4c02;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d63384;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .welcome-message {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .activity-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-type {
+            font-weight: bold;
+            color: #fc4c02;
+        }
+
+        .activity-date {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .activity-distance {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="strava-icon">S</div>
+            <h1>Strava Poster Builder</h1>
+        </div>
+        
+        <div class="user-info">
+            <img id="user-avatar" src="" alt="Avatar" class="user-avatar" style="display: none;">
+            <span id="user-name">Chargement...</span>
+            <button onclick="logout()" class="btn secondary">Déconnexion</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="welcome-message">
+            <h2>🎉 Bienvenue sur votre tableau de bord Strava !</h2>
+            <p>Ici vous pourrez interagir avec vos données d'activités et créer des posters personnalisés.</p>
+            <!-- <div id="debug-info" style="background: #f0f0f0; padding: 1rem; margin: 1rem 0; font-family: monospace; font-size: 0.8rem;"></div> -->
+        </div>
+
+        <div class="error" id="error-message"></div>
+
+        <div class="dashboard-grid">
+            <!-- Statistiques personnelles -->
+            <div class="card">
+                <h3 class="card-title">📊 Vos statistiques</h3>
+                <div class="loading" id="stats-loading">
+                    <div class="spinner"></div>
+                    <p>Chargement de vos statistiques...</p>
+                </div>
+                <div id="stats-content" style="display: none;">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-activities">-</div>
+                            <div class="stat-label">Activités</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-distance">-</div>
+                            <div class="stat-label">Distance totale</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-time">-</div>
+                            <div class="stat-label">Temps total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="elevation-gain">-</div>
+                            <div class="stat-label">Dénivelé total</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activités récentes -->
+            <div class="card">
+                <h3 class="card-title">🏃‍♂️ Activités récentes</h3>
+                <div class="loading" id="activities-loading">
+                    <div class="spinner"></div>
+                    <p>Chargement de vos activités...</p>
+                </div>
+                <div id="activities-content" style="display: none;">
+                    <div class="activity-list" id="activities-list">
+                        <!-- Les activités seront ajoutées ici -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outils de création -->
+            <div class="card">
+                <h3 class="card-title">🎨 Créer un poster</h3>
+                <p>Créez des posters personnalisés avec vos données d'activités.</p>
+                <br>
+                <button class="btn" onclick="createYearPoster()">Poster annuel</button>
+                <button class="btn secondary" onclick="createMonthlyPoster()">Poster mensuel</button>
+                <button class="btn secondary" onclick="createCustomPoster()">Poster personnalisé</button>
+            </div>
+
+            <!-- API Testing -->
+            <div class="card">
+                <h3 class="card-title">🔧 Outils développeur</h3>
+                <p>Testez l'API Strava et explorez vos données.</p>
+                <br>
+                <button class="btn" onclick="testAthleteAPI()">Tester API Athlète</button>
+                <button class="btn secondary" onclick="refreshData()">Actualiser les données</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const config = {
+            backendUrl: 'http://localhost:8000'
+        };
+
+        // État de l'application
+        let authState = {
+            accessToken: null,
+            refreshToken: null,
+            expiresAt: null,
+            athlete: null
+        };
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Vérifier d'abord les paramètres URL (depuis le callback)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('access_token')) {
+                // Récupérer les données depuis l'URL
+                const tokenData = {
+                    access_token: urlParams.get('access_token'),
+                    refresh_token: urlParams.get('refresh_token'),
+                    expires_at: parseInt(urlParams.get('expires_at')),
+                    athlete: JSON.parse(urlParams.get('athlete'))
+                };
+                
+                // Stocker dans localStorage
+                localStorage.setItem('strava_auth', JSON.stringify(tokenData));
+                
+                // Mettre à jour authState avec les bonnes propriétés
+                authState.accessToken = tokenData.access_token;
+                authState.refreshToken = tokenData.refresh_token;
+                authState.expiresAt = tokenData.expires_at;
+                authState.athlete = tokenData.athlete;
+                
+                // Nettoyer l'URL
+                window.history.replaceState({}, document.title, '/home');
+            } else {
+                // Charger depuis localStorage
+                loadAuthState();
+            }
+            
+            // DEBUG INFO (commented out for production)
+            /*
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.innerHTML = `
+                <strong>Debug Info:</strong><br>
+                URL params: ${urlParams.has('access_token') ? 'FOUND' : 'NOT FOUND'}<br>
+                localStorage data: ${localStorage.getItem('strava_auth') ? 'EXISTS' : 'NOT FOUND'}<br>
+                Access Token: ${authState.accessToken ? authState.accessToken.substr(0, 10) + '...' : 'NULL'}<br>
+                Athlete: ${authState.athlete ? authState.athlete.firstname + ' ' + authState.athlete.lastname : 'NULL'}<br>
+                Timestamp: ${new Date().toLocaleTimeString()}
+            `;
+            */
+            
+            if (authState.accessToken) {
+                // debugInfo.innerHTML += '<br><span style="color: green;">✓ User authenticated, loading dashboard</span>';
+                displayUserInfo();
+                loadDashboardData();
+            } else {
+                // debugInfo.innerHTML += '<br><span style="color: red;">✗ No auth token found, redirecting in 3 seconds...</span>';
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+            }
+        });
+
+        function loadAuthState() {
+            const stored = localStorage.getItem('strava_auth');
+            if (stored) {
+                try {
+                    authState = JSON.parse(stored);
+                } catch (error) {
+                    console.error('Erreur lors de la lecture des données d\'authentification:', error);
+                    localStorage.removeItem('strava_auth');
+                }
+            }
+        }
+
+        function displayUserInfo() {
+            if (authState.athlete) {
+                const userNameEl = document.getElementById('user-name');
+                const userAvatarEl = document.getElementById('user-avatar');
+                
+                userNameEl.textContent = `${authState.athlete.firstname} ${authState.athlete.lastname}`;
+                
+                if (authState.athlete.profile) {
+                    userAvatarEl.src = authState.athlete.profile;
+                    userAvatarEl.style.display = 'block';
+                }
+            }
+        }
+
+        async function loadDashboardData() {
+            try {
+                // Charger les statistiques
+                await loadAthleteStats();
+                
+                // Charger les activités récentes
+                await loadRecentActivities();
+                
+            } catch (error) {
+                showError('Erreur lors du chargement des données: ' + error.message);
+            }
+        }
+
+        async function loadAthleteStats() {
+            try {
+                const stats = await makeApiCall('/athlete/stats');
+                
+                // Afficher les statistiques
+                document.getElementById('total-activities').textContent = stats.all_ride_totals.count + stats.all_run_totals.count;
+                document.getElementById('total-distance').textContent = formatDistance(stats.all_ride_totals.distance + stats.all_run_totals.distance);
+                document.getElementById('total-time').textContent = formatTime(stats.all_ride_totals.moving_time + stats.all_run_totals.moving_time);
+                document.getElementById('elevation-gain').textContent = formatElevation(stats.all_ride_totals.elevation_gain + stats.all_run_totals.elevation_gain);
+                
+                // Masquer le loading et afficher le contenu
+                document.getElementById('stats-loading').style.display = 'none';
+                document.getElementById('stats-content').style.display = 'block';
+                
+            } catch (error) {
+                document.getElementById('stats-loading').innerHTML = '<p>❌ Erreur de chargement des statistiques</p>';
+            }
+        }
+
+        async function loadRecentActivities() {
+            try {
+                const activities = await makeApiCall('/athlete/activities?per_page=10');
+                
+                const activitiesList = document.getElementById('activities-list');
+                activitiesList.innerHTML = '';
+                
+                activities.forEach(activity => {
+                    const activityEl = document.createElement('div');
+                    activityEl.className = 'activity-item';
+                    activityEl.innerHTML = `
+                        <div>
+                            <div class="activity-type">${getActivityIcon(activity.type)} ${activity.name}</div>
+                            <div class="activity-date">${formatDate(activity.start_date)}</div>
+                        </div>
+                        <div class="activity-distance">${formatDistance(activity.distance)}</div>
+                    `;
+                    activitiesList.appendChild(activityEl);
+                });
+                
+                // Masquer le loading et afficher le contenu
+                document.getElementById('activities-loading').style.display = 'none';
+                document.getElementById('activities-content').style.display = 'block';
+                
+            } catch (error) {
+                document.getElementById('activities-loading').innerHTML = '<p>❌ Erreur de chargement des activités</p>';
+            }
+        }
+
+        async function makeApiCall(endpoint) {
+            let token = authState.accessToken;
+
+            // Vérifier si le token a expiré
+            if (authState.expiresAt && Date.now() / 1000 >= authState.expiresAt - 300) {
+                try {
+                    token = await refreshAccessToken();
+                } catch (error) {
+                    throw new Error('Token expiré et impossible de le rafraîchir');
+                }
+            }
+
+            const response = await fetch(`https://www.strava.com/api/v3${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur API: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        async function refreshAccessToken() {
+            if (!authState.refreshToken) {
+                throw new Error('Pas de refresh token disponible');
+            }
+
+            try {
+                const response = await fetch(`${config.backendUrl}/auth/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        refresh_token: authState.refreshToken
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erreur lors du rafraîchissement du token');
+                }
+
+                const data = await response.json();
+                authState.accessToken = data.access_token;
+                authState.refreshToken = data.refresh_token;
+                authState.expiresAt = data.expires_at;
+
+                // Mettre à jour le stockage local
+                localStorage.setItem('strava_auth', JSON.stringify(authState));
+
+                return data.access_token;
+            } catch (error) {
+                // En cas d'erreur, forcer une nouvelle authentification
+                logout();
+                throw error;
+            }
+        }
+
+        // Fonctions utilitaires
+        function formatDistance(meters) {
+            const km = meters / 1000;
+            return km.toFixed(1) + ' km';
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            return hours + 'h';
+        }
+
+        function formatElevation(meters) {
+            return Math.round(meters) + 'm';
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('fr-FR', { 
+                day: 'numeric', 
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+
+        function getActivityIcon(type) {
+            const icons = {
+                'Run': '🏃‍♂️',
+                'Ride': '🚴‍♂️',
+                'Swim': '🏊‍♂️',
+                'Hike': '🥾',
+                'Walk': '🚶‍♂️'
+            };
+            return icons[type] || '🏃‍♂️';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function logout() {
+            localStorage.removeItem('strava_auth');
+            window.location.href = '/';
+        }
+
+        // Fonctions pour les boutons d'action
+        function createYearPoster() {
+            alert('Fonctionnalité de création de poster annuel à venir !');
+        }
+
+        function createMonthlyPoster() {
+            alert('Fonctionnalité de création de poster mensuel à venir !');
+        }
+
+        function createCustomPoster() {
+            alert('Fonctionnalité de création de poster personnalisé à venir !');
+        }
+
+        async function testAthleteAPI() {
+            try {
+                const athlete = await makeApiCall('/athlete');
+                alert(`API Test réussi !\nAthlète: ${athlete.firstname} ${athlete.lastname}\nActivités: ${athlete.activity_count}`);
+            } catch (error) {
+                alert('Erreur API: ' + error.message);
+            }
+        }
+
+        function refreshData() {
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>
