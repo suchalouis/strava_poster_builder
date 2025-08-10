@@ -311,6 +311,11 @@ dependencies = [
     { name = "requests" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "flask" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=45.0.6" },
@@ -321,6 +326,9 @@ requires-dist = [
     { name = "redis", specifier = ">=6.4.0" },
     { name = "requests", specifier = ">=2.32.4" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "flask", specifier = ">=3.1.1" }]
 
 [[package]]
 name = "urllib3"

@@ -25,15 +25,18 @@ STRAVA_REDIRECT_URI = os.getenv('STRAVA_REDIRECT_URI', 'http://localhost:8000/au
 STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize'
 STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token'
 
-# Security manager instance
-security_manager = SecurityManager()
-
 # Instances globales
 strava_client = StravaClient()
 data_processor = StravaDataProcessor()
+security_manager = None  # Will be initialized in register_routes
 
 def register_routes(app):
     """Register all routes with the Flask app"""
+    global security_manager
+    
+    # Initialize security manager within app context
+    with app.app_context():
+        security_manager = SecurityManager()
     
     @app.route('/')
     def serve_auth_page():
@@ -147,6 +150,7 @@ def register_routes(app):
             secure_session_data = security_manager.create_secure_session_data(token_data)
             session['auth_data'] = secure_session_data
             session['authenticated'] = True
+            session.permanent = True  # Make session permanent
             
             # Return popup callback page that sends message to parent window
             return render_template_string("""
@@ -185,24 +189,39 @@ def register_routes(app):
                 </div>
                 
                 <script>
-                    if (window.opener) {
-                        // Send success message to parent window (no tokens exposed)
-                        window.opener.postMessage({
-                            type: 'strava_auth_success',
-                            data: {
-                                athlete_name: '{{ athlete_name }}',
-                                authenticated: true
+                    // Toujours essayer de fermer la popup et envoyer un message au parent
+                    // même si window.opener n'est pas détecté immédiatement
+                    function closePopupAndRedirect() {
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                // Send success message to parent window (no tokens exposed)
+                                window.opener.postMessage({
+                                    type: 'strava_auth_success',
+                                    data: {
+                                        athlete_name: '{{ athlete_name }}',
+                                        authenticated: true
+                                    }
+                                }, '{{ origin }}');
+                                
+                                // Close popup after short delay
+                                setTimeout(() => {
+                                    window.close();
+                                }, 1000);
+                            } else {
+                                // Si pas de parent ou popup bloquée, rediriger dans la fenêtre actuelle
+                                window.location.href = '/home';
                             }
-                        }, '{{ origin }}');
-                        
-                        // Close popup after short delay
-                        setTimeout(() => {
-                            window.close();
-                        }, 1500);
-                    } else {
-                        // Redirect to home page
-                        window.location.href = '/home';
+                        } catch (error) {
+                            // En cas d'erreur (cross-origin, etc.), rediriger vers /home
+                            console.log('Redirecting to home due to popup error:', error);
+                            window.location.href = '/home';
+                        }
                     }
+                    
+                    // Tenter la fermeture immédiatement et aussi après un petit délai
+                    // pour s'assurer que window.opener est disponible
+                    closePopupAndRedirect();
+                    setTimeout(closePopupAndRedirect, 100);
                 </script>
             </body>
             </html>
@@ -261,10 +280,57 @@ def register_routes(app):
         def decorated_function(*args, **kwargs):
             if not session.get('authenticated') or not session.get('auth_data'):
                 return jsonify({'error': 'Authentication required'}), 401
+            
+            # Try to decrypt tokens to ensure they are valid
+            try:
+                auth_data = session.get('auth_data')
+                if auth_data and 'access_token' in auth_data:
+                    # Test decryption - if it fails, the session is invalid
+                    security_manager.get_decrypted_tokens(auth_data)
+            except Exception as e:
+                print(f"Session invalid, clearing: {e}")
+                session.clear()
+                return jsonify({'error': 'Session invalid, please re-authenticate'}), 401
+                
             return f(*args, **kwargs)
         decorated_function.__name__ = f.__name__
         return decorated_function
     
+    @app.route('/api/athlete')
+    @require_auth
+    def get_athlete_info():
+        """Récupérer les informations de l'athlète connecté"""
+        try:
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
+                
+            # Configurer le client Strava
+            strava_client.set_tokens(
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
+            )
+            
+            # Récupérer les informations de l'athlète
+            athlete_info = strava_client.get_athlete()
+            
+            return jsonify({
+                'id': athlete_info.get('id'),
+                'firstname': athlete_info.get('firstname'),
+                'lastname': athlete_info.get('lastname'),
+                'profile': athlete_info.get('profile'),
+                'profile_medium': athlete_info.get('profile_medium'),
+                'city': athlete_info.get('city'),
+                'country': athlete_info.get('country'),
+                'sex': athlete_info.get('sex'),
+                'created_at': athlete_info.get('created_at'),
+                'updated_at': athlete_info.get('updated_at')
+            })
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/api/athlete/stats')
     @require_auth
     def get_athlete_stats():
@@ -320,10 +386,27 @@ def register_routes(app):
                 before=int(before) if before else None
             )
             
-            # Traiter les données
-            processed_data = data_processor.process_activities_summary(activities)
+            # Formater les activités pour l'affichage avec les données brutes
+            formatted_activities = []
+            for activity in activities:
+                formatted_activities.append({
+                    'id': activity.get('id'),
+                    'name': activity.get('name'),
+                    'type': activity.get('type'),
+                    'icon': data_processor.get_activity_icon(activity.get('type', '')),
+                    # Données formatées pour l'affichage
+                    'distance': data_processor.format_distance(activity.get('distance', 0)),
+                    'time': data_processor.format_time(activity.get('moving_time', 0)),
+                    'elevation': data_processor.format_elevation(activity.get('total_elevation_gain', 0)),
+                    # Données brutes pour les calculs
+                    'distance_raw': activity.get('distance', 0),
+                    'moving_time': activity.get('moving_time', 0),
+                    'total_elevation_gain': activity.get('total_elevation_gain', 0),
+                    'date': activity.get('start_date_local'),
+                    'formatted_date': data_processor.format_date(activity.get('start_date_local'))
+                })
             
-            return jsonify(processed_data)
+            return jsonify({'activities': formatted_activities})
             
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -394,7 +477,7 @@ def register_routes(app):
             # Récupérer les activités récentes
             activities = strava_client.get_recent_activities(count)
             
-            # Les formater pour l'affichage
+            # Les formater pour l'affichage avec les données brutes
             formatted_activities = []
             for activity in activities:
                 formatted_activities.append({
@@ -402,14 +485,105 @@ def register_routes(app):
                     'name': activity.get('name'),
                     'type': activity.get('type'),
                     'icon': data_processor.get_activity_icon(activity.get('type', '')),
+                    # Données formatées pour l'affichage
                     'distance': data_processor.format_distance(activity.get('distance', 0)),
                     'time': data_processor.format_time(activity.get('moving_time', 0)),
                     'elevation': data_processor.format_elevation(activity.get('total_elevation_gain', 0)),
+                    # Données brutes pour les calculs
+                    'distance_raw': activity.get('distance', 0),
+                    'moving_time': activity.get('moving_time', 0),
+                    'total_elevation_gain': activity.get('total_elevation_gain', 0),
                     'date': activity.get('start_date_local'),
                     'formatted_date': data_processor.format_date(activity.get('start_date_local'))
                 })
             
             return jsonify({'activities': formatted_activities})
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/activity/<int:activity_id>/gpx')
+    @require_auth
+    def get_activity_gpx(activity_id):
+        """Récupérer les données GPX d'une activité spécifique"""
+        try:
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
+            
+            # Configurer le client Strava
+            strava_client.set_tokens(
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
+            )
+            
+            # Récupérer les données GPX
+            gpx_data = strava_client.get_activity_gpx_data(activity_id)
+            
+            if gpx_data is None:
+                return jsonify({'error': 'Aucune donnée GPS disponible pour cette activité'}), 404
+            
+            return jsonify({
+                'activity_id': activity_id,
+                'coordinates': gpx_data
+            })
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/activities/gpx')
+    @require_auth 
+    def get_multiple_activities_gpx():
+        """Récupérer les données GPX de plusieurs activités"""
+        try:
+            # Récupérer les IDs des activités depuis les paramètres
+            activity_ids = request.args.get('ids', '').split(',')
+            activity_ids = [int(id.strip()) for id in activity_ids if id.strip().isdigit()]
+            
+            if not activity_ids:
+                return jsonify({'error': 'Aucun ID d\'activité fourni'}), 400
+            
+            if len(activity_ids) > 20:  # Limiter pour éviter les abus
+                return jsonify({'error': 'Maximum 20 activités par requête'}), 400
+            
+            # Récupérer les tokens depuis la session sécurisée
+            auth_data = session.get('auth_data')
+            tokens = security_manager.get_decrypted_tokens(auth_data)
+            
+            # Configurer le client Strava
+            strava_client.set_tokens(
+                access_token=tokens['access_token'],
+                refresh_token=tokens['refresh_token'],
+                expires_at=tokens['expires_at']
+            )
+            
+            # Récupérer les données GPX pour chaque activité
+            activities_gpx = []
+            print(f"🗺️ Récupération des données GPX pour {len(activity_ids)} activités: {activity_ids}")
+            
+            for activity_id in activity_ids:
+                try:
+                    gpx_data = strava_client.get_activity_gpx_data(activity_id)
+                    if gpx_data and len(gpx_data) > 0:
+                        activities_gpx.append({
+                            'activity_id': activity_id,
+                            'coordinates': gpx_data
+                        })
+                        print(f"✅ Activité {activity_id}: {len(gpx_data)} coordonnées récupérées")
+                    else:
+                        print(f"⚠️ Activité {activity_id}: aucune donnée GPS disponible")
+                except Exception as e:
+                    # Continuer même si une activité échoue
+                    print(f"❌ Erreur pour l'activité {activity_id}: {e}")
+                    continue
+            
+            print(f"📊 Au total: {len(activities_gpx)} activités avec données GPS sur {len(activity_ids)} demandées")
+            
+            return jsonify({
+                'activities': activities_gpx,
+                'total': len(activities_gpx)
+            })
             
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -424,10 +598,27 @@ def register_routes(app):
     def auth_status():
         """Check authentication status"""
         authenticated = session.get('authenticated', False)
-        if authenticated and session.get('auth_data'):
-            return jsonify({'authenticated': True})
+        auth_data = session.get('auth_data')
+        
+        if authenticated and auth_data:
+            try:
+                # Verify that the session contains valid encrypted tokens
+                if 'access_token' in auth_data:
+                    security_manager.get_decrypted_tokens(auth_data)
+                    return jsonify({'authenticated': True})
+                else:
+                    # No tokens in session data
+                    session.clear()
+                    return jsonify({'authenticated': False})
+            except Exception as e:
+                # Invalid session data, clear it
+                print(f"Invalid session data, clearing: {e}")
+                session.clear()
+                return jsonify({'authenticated': False})
         else:
-            return jsonify({'authenticated': False}), 401
+            return jsonify({'authenticated': False})
+
+
 
 def exchange_code_for_tokens(code):
     """Exchange authorization code for access tokens"""

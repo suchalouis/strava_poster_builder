@@ -211,18 +211,16 @@
             }
             
             if (event.data.type === 'strava_auth_success') {
-                // Authentification réussie - rediriger vers home
-                const tokenData = event.data.data;
-                authState.accessToken = tokenData.access_token;
-                authState.refreshToken = tokenData.refresh_token;
-                authState.expiresAt = tokenData.expires_at;
-                authState.athlete = tokenData.athlete;
+                // Authentification réussie avec le nouveau système de sessions
+                // Les tokens sont maintenant gérés côté serveur de façon sécurisée
                 
-                // Stocker dans localStorage pour persistance
-                localStorage.setItem('strava_auth', JSON.stringify(authState));
+                // Afficher un message de succès temporaire
+                showSuccess('Authentification réussie ! Redirection...');
                 
-                // Rediriger vers la page d'accueil
-                window.location.href = '/home';
+                // Rediriger vers la page d'accueil après un court délai
+                setTimeout(() => {
+                    window.location.href = '/home';
+                }, 1000);
                 
             } else if (event.data.type === 'strava_auth_error') {
                 showError('Erreur d\'authentification: ' + event.data.error);
@@ -381,34 +379,53 @@
             `;
         }
 
-        function checkStoredAuth() {
-            // Vérifier si des tokens sont stockés localement
-            const stored = localStorage.getItem('strava_auth');
-            if (stored) {
-                try {
-                    const tokenData = JSON.parse(stored);
-                    
-                    if (tokenData.expiresAt && Date.now() / 1000 < tokenData.expiresAt - 300) {
-                        window.location.href = '/home';
-                        return;
-                    } else if (tokenData.refreshToken) {
-                        authState = tokenData;
-                        refreshAccessToken().then(() => {
+        async function checkStoredAuth() {
+            // Nettoyer l'ancien système localStorage
+            localStorage.removeItem('strava_auth');
+            
+            // Vérifier l'authentification côté serveur avec le nouveau système de sessions
+            try {
+                const response = await fetch(`${config.backendUrl}/auth/status`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const authStatus = await response.json();
+                    if (authStatus.authenticated) {
+                        console.log('User already authenticated, redirecting to home');
+                        // Add a small delay to prevent race conditions
+                        setTimeout(() => {
                             window.location.href = '/home';
-                        }).catch(() => {
-                            localStorage.removeItem('strava_auth');
-                        });
+                        }, 100);
                         return;
                     }
-                } catch (error) {
-                    console.error('Erreur lors de la lecture des données stockées:', error);
                 }
-                
-                localStorage.removeItem('strava_auth');
+                console.log('User not authenticated, showing login form');
+            } catch (error) {
+                console.error('Erreur lors de la vérification de l\'authentification:', error);
+                console.log('Auth check failed, showing login form');
             }
         }
 
-        function logout() {
+        async function logout() {
+            // Déconnexion côté serveur avec le nouveau système de sessions
+            try {
+                await fetch(`${config.backendUrl}/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Erreur lors de la déconnexion:', error);
+            }
+
+            // Nettoyer l'ancien système
+            localStorage.removeItem('strava_auth');
+            
+            // Réinitialiser l'état local
             authState = {
                 accessToken: null,
                 refreshToken: null,
@@ -416,8 +433,7 @@
                 athlete: null
             };
 
-            localStorage.removeItem('strava_auth');
-
+            // Afficher la section de connexion
             document.getElementById('welcome-section').style.display = 'none';
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('success-message').style.display = 'none';

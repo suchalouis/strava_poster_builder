@@ -196,3 +196,53 @@ class StravaClient:
     def get_recent_activities(self, count: int = 10) -> List[Dict]:
         """Récupérer les activités récentes"""
         return self.get_activities(per_page=count, page=1)
+    
+    def get_activity_streams(self, activity_id: int, keys: List[str] = None) -> Dict:
+        """
+        Récupérer les streams (données GPX) d'une activité
+        
+        Args:
+            activity_id: ID de l'activité
+            keys: Liste des types de streams à récupérer 
+                  (latlng, distance, time, altitude, velocity_smooth, heartrate, cadence, watts, temp, moving, grade_smooth)
+        """
+        if keys is None:
+            keys = ['latlng', 'distance', 'time', 'altitude']
+        
+        keys_param = ','.join(keys)
+        endpoint = f"/activities/{activity_id}/streams"
+        params = {
+            'keys': keys_param,
+            'key_by_type': True,
+            'series_type': 'time'  # Recommandé pour latlng selon la doc
+        }
+        
+        return self._make_request(endpoint, params)
+    
+    def get_activity_gpx_data(self, activity_id: int) -> Optional[List[List[float]]]:
+        """
+        Récupérer les coordonnées GPS d'une activité pour affichage sur carte
+        
+        Returns:
+            List of [latitude, longitude] coordinates or None if no GPS data
+        """
+        try:
+            print(f"🌐 Récupération des streams pour l'activité {activity_id}")
+            streams = self.get_activity_streams(activity_id, ['latlng'])
+            print(f"📊 Streams reçus: {streams}")
+            
+            if 'latlng' in streams and 'data' in streams['latlng']:
+                coordinates = streams['latlng']['data']
+                print(f"✅ {len(coordinates)} coordonnées GPS trouvées pour l'activité {activity_id}")
+                # Les données latlng sont sous forme [[lat1, lng1], [lat2, lng2], ...]
+                return coordinates
+            elif 'latlng' in streams:
+                print(f"❌ Stream latlng présent mais pas de données pour l'activité {activity_id}: {streams['latlng']}")
+            else:
+                print(f"❌ Aucun stream latlng trouvé pour l'activité {activity_id}")
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Erreur lors de la récupération des données GPS pour l'activité {activity_id}: {e}")
+            return None

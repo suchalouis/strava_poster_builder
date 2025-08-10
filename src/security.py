@@ -26,7 +26,7 @@ class SecurityManager:
         if not encryption_key:
             # Generate a key if not provided (development only)
             encryption_key = Fernet.generate_key().decode()
-            current_app.logger.warning("Using generated encryption key - set ENCRYPTION_KEY in production")
+            print("WARNING: Using generated encryption key - set ENCRYPTION_KEY in production")
         
         if isinstance(encryption_key, str):
             encryption_key = encryption_key.encode()
@@ -40,8 +40,9 @@ class SecurityManager:
             self.redis_client = redis.from_url(redis_url, decode_responses=True)
             # Test connection
             self.redis_client.ping()
-        except redis.ConnectionError:
-            current_app.logger.warning("Redis not available, falling back to in-memory storage")
+            print("Redis connection successful")
+        except Exception as e:
+            print(f"WARNING: Redis not available ({e}), falling back to in-memory storage")
             self.redis_client = None
     
     def store_oauth_state(self, state: str, data: dict = None) -> None:
@@ -53,10 +54,10 @@ class SecurityManager:
             # Store in Redis with 10 minute expiration
             self.redis_client.setex(f"oauth_state:{state}", 600, json.dumps(data))
         else:
-            # Fallback: store in app context (not recommended for production)
-            if not hasattr(current_app, 'oauth_states'):
-                current_app.oauth_states = {}
-            current_app.oauth_states[state] = data
+            # Fallback: use a simple in-memory dict (not recommended for production with multiple workers)
+            if not hasattr(self, '_oauth_states'):
+                self._oauth_states = {}
+            self._oauth_states[state] = data
     
     def verify_oauth_state(self, state: str) -> bool:
         """Verify OAuth state exists and remove it"""
@@ -68,7 +69,7 @@ class SecurityManager:
             return bool(exists)
         else:
             # Fallback
-            oauth_states = getattr(current_app, 'oauth_states', {})
+            oauth_states = getattr(self, '_oauth_states', {})
             return oauth_states.pop(state, None) is not None
     
     def encrypt_token(self, token: str) -> str:
@@ -102,12 +103,12 @@ class SecurityManager:
     
     def cleanup_expired_states(self):
         """Clean up expired OAuth states (for fallback storage)"""
-        if not self.redis_client and hasattr(current_app, 'oauth_states'):
+        if not self.redis_client and hasattr(self, '_oauth_states'):
             current_time = int(time.time())
             expired_states = []
-            for state, data in current_app.oauth_states.items():
+            for state, data in self._oauth_states.items():
                 if current_time - data.get('timestamp', 0) > 600:  # 10 minutes
                     expired_states.append(state)
             
             for state in expired_states:
-                current_app.oauth_states.pop(state, None)
+                self._oauth_states.pop(state, None)

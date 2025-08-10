@@ -18,14 +18,28 @@ def create_app():
     
     # Security configuration
     app.config['SECRET_KEY'] = os.getenv('SESSION_SECRET_KEY', secrets.token_hex(32))
-    app.config['SESSION_TYPE'] = 'redis'
-    app.config['SESSION_REDIS'] = None  # Will be set up in security manager
-    app.config['SESSION_PERMANENT'] = False
+    
+    # Try Redis, fallback to filesystem
+    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+    try:
+        import redis
+        redis_client = redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()  # Test connection
+        app.config['SESSION_TYPE'] = 'redis'
+        app.config['SESSION_REDIS'] = redis_client
+        print("Using Redis for sessions")
+    except Exception as e:
+        print("WARNING: Redis not available, using filesystem sessions")
+        app.config['SESSION_TYPE'] = 'filesystem'
+        app.config['SESSION_FILE_DIR'] = '/tmp/flask_sessions'
+        
+    app.config['SESSION_PERMANENT'] = True
     app.config['SESSION_USE_SIGNER'] = True
-    app.config['SESSION_COOKIE_SECURE'] = not app.debug  # HTTPS only in production
+    app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_NAME'] = 'strava_session'
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours in seconds
     
     # Security headers
     @app.after_request
