@@ -77,7 +77,56 @@
             margin: 0 auto;
         }
 
-        /* Common Widget Styles */
+        /* Base Widget Component */
+        .base-widget {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .base-widget-header {
+            background: #fc4c02;
+            color: white;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .base-widget-header .icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .base-widget-content {
+            padding: 1.5rem;
+        }
+
+        /* Widget Types */
+        .filter-widget {
+            margin-bottom: 2rem;
+        }
+        
+        .filter-widget .base-widget-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .stats-widget .base-widget-header {
+            background: linear-gradient(135deg, #6610f2, #6f42c1);
+        }
+        
+        .activities-widget .base-widget-header {
+            background: linear-gradient(135deg, #fd7e14, #ffc107);
+        }
+        
+        .map-widget .base-widget-header {
+            background: linear-gradient(135deg, #0d6efd, #198754);
+        }
+
+        /* Legacy widget classes for compatibility */
         .widget {
             background: white;
             border-radius: 12px;
@@ -98,7 +147,7 @@
 
 
         /* Date Range Selector */
-        .filter-widget {
+        .filter-widget.base-widget {
             margin-bottom: 2rem;
         }
         
@@ -151,26 +200,32 @@
             background: #545b62;
         }
 
-        /* Main Layout */
+        /* Main Layout - 2 Column Grid */
         .dashboard-layout {
             display: grid;
-            grid-template-columns: 350px 1fr;
+            grid-template-columns: 400px 1fr;
             gap: 2rem;
             min-height: 600px;
         }
 
-        /* Left Panel */
+        /* Left Panel - Stacked widgets */
         .left-panel {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 0; /* Remove gap as base-widget has margin-bottom */
+        }
+
+        /* Right Panel - Map only */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
         }
 
         /* Stats Widget */
         .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+            display: flex;
+            gap: 1.5rem;
+            justify-content: space-around;
         }
 
         .stat-item {
@@ -303,7 +358,8 @@
             }
             
             .stats-grid {
-                grid-template-columns: 1fr;
+                flex-direction: column;
+                gap: 1rem;
             }
         }
 
@@ -378,46 +434,49 @@
     </header>
 
     <div class="main-container">
-        <!-- Date Range Selector -->
-        <div class="widget filter-widget">
-            <div class="widget-header">
-                🗓️ Filtres
-            </div>
-            <div class="widget-content date-controls">
-                <div class="date-group">
-                    <label for="start-date">Date de début</label>
-                    <input type="date" id="start-date" class="date-input">
-                </div>
-                <div class="date-group">
-                    <label for="end-date">Date de fin</label>
-                    <input type="date" id="end-date" class="date-input">
-                </div>
-                <div class="date-group">
-                    <label for="activity-type">Type d'activité</label>
-                    <select id="activity-type" class="date-input">
-                        <option value="">Tous</option>
-                        <option value="Run">Course 🏃‍♂️</option>
-                        <option value="Ride">Vélo 🚴‍♂️</option>
-                        <option value="Swim">Natation 🏊‍♂️</option>
-                        <option value="Hike">Randonnée 🥾</option>
-                        <option value="Walk">Marche 🚶‍♂️</option>
-                    </select>
-                </div>
-                <button class="btn filter" onclick="filterActivitiesByDate()">Filtrer</button>
-                <button class="btn secondary" onclick="resetDateFilter()">Réinitialiser</button>
-            </div>
-        </div>
 
         <!-- Main Dashboard Layout -->
         <div class="dashboard-layout">
-            <!-- Left Panel -->
+            <!-- Left Panel: Filtres, Stats, Activities stacked -->
             <div class="left-panel">
-                <!-- Stats Widget -->
-                <div class="widget stats-widget">
-                    <div class="widget-header">
-                        📊 Statistiques
+                <!-- Filtres déplacés dans la colonne gauche -->
+                <div class="base-widget filter-widget">
+                    <div class="base-widget-header">
+                        <span class="icon">🗓️</span>
+                        <span>Filtres</span>
                     </div>
-                    <div class="widget-content">
+                    <div class="base-widget-content date-controls">
+                        <div class="date-group">
+                            <label for="start-date">Date de début</label>
+                            <input type="date" id="start-date-left" class="date-input">
+                        </div>
+                        <div class="date-group">
+                            <label for="end-date">Date de fin</label>
+                            <input type="date" id="end-date-left" class="date-input">
+                        </div>
+                        <div class="date-group">
+                            <label for="activity-type">Type d'activité</label>
+                            <select id="activity-type-left" class="date-input">
+                                <option value="">Tous</option>
+                                <option value="Run">Course 🏃‍♂️</option>
+                                <option value="Ride">Vélo 🚴‍♂️</option>
+                                <option value="Swim">Natation 🏊‍♂️</option>
+                                <option value="Hike">Randonnée 🥾</option>
+                                <option value="Walk">Marche 🚶‍♂️</option>
+                            </select>
+                        </div>
+                        <button class="btn filter" onclick="filterActivitiesByDateLeft()">Filtrer</button>
+                        <button class="btn secondary" onclick="resetDateFilterLeft()">Réinitialiser</button>
+                    </div>
+                </div>
+
+                <!-- Stats Widget -->
+                <div class="base-widget stats-widget">
+                    <div class="base-widget-header">
+                        <span class="icon">📊</span>
+                        <span>Statistiques</span>
+                    </div>
+                    <div class="base-widget-content">
                         <div class="stats-grid" id="stats-content">
                         <div class="stat-item">
                             <div class="stat-value" id="total-activities">-</div>
@@ -431,18 +490,15 @@
                             <div class="stat-value" id="total-time">-</div>
                             <div class="stat-label">Temps</div>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="total-elevation">-</div>
-                            <div class="stat-label">Dénivelé</div>
-                        </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Activities List -->
-                <div class="widget activities-section">
-                    <div class="widget-header">
-                        🏃‍♂️ Activités récentes
+                <div class="base-widget activities-widget activities-section">
+                    <div class="base-widget-header">
+                        <span class="icon">🏃‍♂️</span>
+                        <span>Activités récentes</span>
                     </div>
                     <div class="activities-list" id="activities-list">
                         <div class="loading">Chargement des activités...</div>
@@ -459,44 +515,47 @@
                 -->
             </div>
 
-            <!-- Map Container -->
-            <div class="widget map-container">
-                <div class="widget-header">
-                    🗺️ Carte des activités
-                </div>
-                <!-- Activity Legend - Hidden for now -->
-                <!--
-                <div class="activity-legend" style="display: none;">
-                    <h4>🎨 Types d'activités</h4>
-                    <div class="legend-items">
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #e74c3c;"></div>
-                            <span>Course</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #3498db;"></div>
-                            <span>Vélo</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #1abc9c;"></div>
-                            <span>Natation</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #27ae60;"></div>
-                            <span>Randonnée</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #95a5a6;"></div>
-                            <span>Marche</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #fc4c02;"></div>
-                            <span>Autre</span>
+            <!-- Right Panel: Map only -->
+            <div class="right-panel">
+                <div class="base-widget map-widget map-container">
+                    <div class="base-widget-header">
+                        <span class="icon">🗺️</span>
+                        <span>Carte des activités</span>
+                    </div>
+                    <!-- Activity Legend - Hidden for now -->
+                    <!--
+                    <div class="activity-legend" style="display: none;">
+                        <h4>🎨 Types d'activités</h4>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #e74c3c;"></div>
+                                <span>Course</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #3498db;"></div>
+                                <span>Vélo</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #1abc9c;"></div>
+                                <span>Natation</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #27ae60;"></div>
+                                <span>Randonnée</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #95a5a6;"></div>
+                                <span>Marche</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #fc4c02;"></div>
+                                <span>Autre</span>
+                            </div>
                         </div>
                     </div>
+                    -->
+                    <div id="map"></div>
                 </div>
-                -->
-                <div id="map"></div>
             </div>
         </div>
     </div>
@@ -515,6 +574,8 @@
         let allActivitiesData = [];  // Toutes les activités récupérées
         let filteredActivitiesData = [];  // Activités après filtrage
         let activityLayers = [];
+        let dataLoadedOnce = false;  // Flag pour éviter les rechargements
+        let userInfoCache = null;    // Cache des infos utilisateur
 
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
@@ -524,7 +585,7 @@
             setDefaultDateRange();
             
             // Ajouter des listeners pour les filtres
-            document.getElementById('activity-type').addEventListener('change', applyFiltersAndDisplay);
+            document.getElementById('activity-type-left').addEventListener('change', applyFiltersAndDisplay);
         });
 
         function initializeMap() {
@@ -542,35 +603,45 @@
             const startDate = new Date();
             startDate.setMonth(startDate.getMonth() - 3); // Last 3 months
 
-            document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
-            document.getElementById('end-date').value = endDate.toISOString().split('T')[0];
+            document.getElementById('start-date-left').value = startDate.toISOString().split('T')[0];
+            document.getElementById('end-date-left').value = endDate.toISOString().split('T')[0];
         }
 
         async function loadUserInfo() {
+            // Utiliser le cache si disponible
+            if (userInfoCache) {
+                displayUserInfo(userInfoCache);
+                return;
+            }
+
             try {
-                console.log('📥 Chargement des informations utilisateur...');
                 const userInfo = await makeBackendApiCall('/api/athlete');
                 
-                // Mettre à jour le nom d'utilisateur
-                const userNameElement = document.getElementById('user-name');
-                const userName = userInfo.firstname ? `Bienvenue ${userInfo.firstname} !` : 'Utilisateur';
-                userNameElement.textContent = userName;
+                // Mettre en cache pour éviter les appels futurs
+                userInfoCache = userInfo;
                 
-                // Mettre à jour l'avatar si disponible
-                const userAvatarElement = document.getElementById('user-avatar');
-                if (userInfo.profile || userInfo.profile_medium) {
-                    userAvatarElement.src = userInfo.profile_medium || userInfo.profile;
-                    userAvatarElement.style.display = 'inline-block';
-                    userAvatarElement.onerror = function() {
-                        this.style.display = 'none';
-                    };
-                }
-                
-                console.log('✅ Informations utilisateur chargées:', userName);
+                displayUserInfo(userInfo);
+                console.log(`👤 Utilisateur connecté: ${userInfo.firstname} ${userInfo.lastname} (${userInfo.city || 'Localisation inconnue'})`);
             } catch (error) {
-                console.error('Erreur lors du chargement des informations utilisateur:', error);
-                // Garder le texte par défaut en cas d'erreur
+                console.error('❌ Erreur chargement utilisateur:', error);
                 document.getElementById('user-name').textContent = 'Utilisateur';
+            }
+        }
+
+        function displayUserInfo(userInfo) {
+            // Mettre à jour le nom d'utilisateur
+            const userNameElement = document.getElementById('user-name');
+            const userName = userInfo.firstname ? `Bienvenue ${userInfo.firstname} !` : 'Utilisateur';
+            userNameElement.textContent = userName;
+            
+            // Mettre à jour l'avatar si disponible
+            const userAvatarElement = document.getElementById('user-avatar');
+            if (userInfo.profile || userInfo.profile_medium) {
+                userAvatarElement.src = userInfo.profile_medium || userInfo.profile;
+                userAvatarElement.style.display = 'inline-block';
+                userAvatarElement.onerror = function() {
+                    this.style.display = 'none';
+                };
             }
         }
 
@@ -594,27 +665,64 @@
         }
         
         async function loadAllActivities() {
+            // Si les données sont déjà chargées, ne pas recharger
+            if (dataLoadedOnce && allActivitiesData.length > 0) {
+                return;
+            }
+
             try {
-                console.log('📥 Chargement de toutes les activités de l\'utilisateur...');
-                
-                // Récupérer plus d'activités (6 mois par exemple)
+                // Récupérer plus d'activités (12 mois pour couvrir plus de cas d'usage)
                 const endDate = new Date();
                 const startDate = new Date();
-                startDate.setMonth(startDate.getMonth() - 6); // 6 derniers mois
+                startDate.setFullYear(startDate.getFullYear() - 1); // 12 derniers mois
                 
                 const startTimestamp = Math.floor(startDate.getTime() / 1000);
                 const endTimestamp = Math.floor(endDate.getTime() / 1000);
                 
                 const endpoint = `/api/athlete/activities?per_page=200&after=${startTimestamp}&before=${endTimestamp}`;
-                console.log(`🌐 Récupération des activités des 6 derniers mois`);
                 
                 const data = await makeBackendApiCall(endpoint);
                 allActivitiesData = data.activities || [];
+                dataLoadedOnce = true;
                 
-                console.log(`✅ ${allActivitiesData.length} activités récupérées au total`);
+                // Log des statistiques globales
+                const typeCount = {};
+                allActivitiesData.forEach(activity => {
+                    typeCount[activity.type] = (typeCount[activity.type] || 0) + 1;
+                });
+                
+                console.log(`📊 ${allActivitiesData.length} activités chargées (12 derniers mois)`);
+                console.log(`📈 Répartition:`, Object.entries(typeCount).map(([type, count]) => `${type}: ${count}`).join(', '));
+                
+                // Cache indicator removed
             } catch (error) {
-                console.error('Error loading all activities:', error);
+                console.error('❌ Erreur extraction activités:', error);
                 throw error;
+            }
+        }
+
+        function showCacheIndicator() {
+            // Cache indicator functionality removed
+        }
+
+        async function refreshData() {
+            // Réinitialiser le cache
+            dataLoadedOnce = false;
+            allActivitiesData = [];
+            userInfoCache = null;
+            
+            // Cache management removed
+            
+            try {
+                // Recharger toutes les données
+                await loadUserInfo();
+                await loadAllActivities();
+                applyFiltersAndDisplay();
+                
+                console.log('✅ Données actualisées depuis l\'API Strava');
+            } catch (error) {
+                console.error('❌ Erreur actualisation:', error);
+                showErrorMessage('Erreur lors de l\'actualisation des données');
             }
         }
 
@@ -646,15 +754,14 @@
         }
 
         function applyFiltersAndDisplay() {
-            console.log('🔍 Application des filtres...');
-            
             // Récupérer les valeurs des filtres
-            const startDateValue = document.getElementById('start-date').value;
-            const endDateValue = document.getElementById('end-date').value;
-            const activityTypeValue = document.getElementById('activity-type').value;
+            const startDateValue = document.getElementById('start-date-left').value;
+            const endDateValue = document.getElementById('end-date-left').value;
+            const activityTypeValue = document.getElementById('activity-type-left').value;
             
             // Commencer avec toutes les activités
             let filtered = [...allActivitiesData];
+            const initialCount = filtered.length;
             
             // Appliquer le filtre de date
             if (startDateValue && endDateValue) {
@@ -666,19 +773,26 @@
                     const activityDate = new Date(activity.date);
                     return activityDate >= startDate && activityDate <= endDate;
                 });
-                
-                console.log(`📅 Filtre date: ${startDateValue} à ${endDateValue} → ${filtered.length} activités`);
             }
             
             // Appliquer le filtre de type
             if (activityTypeValue) {
                 filtered = filtered.filter(activity => activity.type === activityTypeValue);
-                console.log(`🏃 Filtre type ${activityTypeValue} → ${filtered.length} activités`);
             }
             
             // Sauvegarder les activités filtrées
             filteredActivitiesData = filtered;
-            console.log(`✅ ${filteredActivitiesData.length} activités après filtrage`);
+            
+            // Log du filtrage avec détails
+            const filters = [];
+            if (startDateValue && endDateValue) filters.push(`📅 ${startDateValue} → ${endDateValue}`);
+            if (activityTypeValue) filters.push(`🏃 ${activityTypeValue}`);
+            
+            const activityIds = filteredActivitiesData.map(a => a.id).slice(0, 10); // Premiers 10 IDs
+            const moreIds = filteredActivitiesData.length > 10 ? ` (+${filteredActivitiesData.length - 10} autres)` : '';
+            
+            console.log(`🔍 Filtres: ${filters.join(', ') || 'Aucun'} | ${initialCount} → ${filteredActivitiesData.length} activités`);
+            console.log(`🆔 IDs: [${activityIds.join(', ')}]${moreIds}`);
             
             // Mettre à jour tous les affichages
             updateAllDisplays();
@@ -695,14 +809,12 @@
                 document.getElementById('total-activities').textContent = '0';
                 document.getElementById('total-distance').textContent = '0 km';
                 document.getElementById('total-time').textContent = '0h';
-                document.getElementById('total-elevation').textContent = '0 m';
                 return;
             }
 
             let totalActivities = filteredActivitiesData.length;
             let totalDistance = 0;
             let totalTime = 0;
-            let totalElevation = 0;
 
             // Calculer les totaux à partir des activités filtrées
             filteredActivitiesData.forEach(activity => {
@@ -713,19 +825,12 @@
                 if (activity.moving_time !== undefined) {
                     totalTime += parseInt(activity.moving_time) || 0;
                 }
-                if (activity.total_elevation_gain !== undefined) {
-                    totalElevation += parseFloat(activity.total_elevation_gain) || 0;
-                }
             });
 
             // Formater et afficher
             document.getElementById('total-activities').textContent = totalActivities.toString();
             document.getElementById('total-distance').textContent = formatDistance(totalDistance);
             document.getElementById('total-time').textContent = formatTime(totalTime);
-            document.getElementById('total-elevation').textContent = formatElevation(totalElevation);
-            
-            // Log pour debugging (sera retiré plus tard)
-            console.log(`📊 Statistiques calculées: ${totalActivities} activités, ${(totalDistance/1000).toFixed(1)}km, ${Math.round(totalTime/3600*10)/10}h, ${Math.round(totalElevation)}m`);
         }
 
         function formatDistance(meters) {
@@ -784,32 +889,17 @@
             const activitiesToDisplay = filteredActivitiesData.slice(0, 20);
             const activityIds = activitiesToDisplay.map(activity => activity.id).filter(id => id).join(',');
             
-            console.log(`🗺️ Tentative d'affichage de ${activitiesToDisplay.length} activités sur la carte`);
-            console.log(`🆔 IDs des activités: ${activityIds}`);
-            console.log(`📋 Types d'activités:`, activitiesToDisplay.map(a => `${a.id}:${a.type}`).join(', '));
-            
             if (!activityIds) {
-                console.warn('❌ Aucun ID d\'activité valide trouvé');
                 displayDemoTracksOnMap();
                 return;
             }
             
             try {
                 // Fetch real GPX data from Strava API
-                console.log(`🌐 Appel API GPX: /api/activities/gpx?ids=${activityIds}`);
                 const gpxData = await makeBackendApiCall(`/api/activities/gpx?ids=${activityIds}`);
-                console.log(`📊 Réponse API GPX:`, gpxData);
                 
                 if (gpxData.activities && gpxData.activities.length > 0) {
-                    console.log(`✅ ${gpxData.activities.length} activités avec données GPS reçues`);
-                    
-                    // Diagnostic : quelles activités ont des données GPS vs lesquelles n'en ont pas
-                    const activitiesWithGPS = gpxData.activities.map(a => a.activity_id);
-                    const activitiesWithoutGPS = activitiesToDisplay.filter(a => !activitiesWithGPS.includes(a.id));
-                    if (activitiesWithoutGPS.length > 0) {
-                        console.warn(`⚠️ ${activitiesWithoutGPS.length} activités sans données GPS:`, 
-                            activitiesWithoutGPS.map(a => `${a.id}:${a.type}:${a.name}`));
-                    }
+                    console.log(`🗺️ ${gpxData.activities.length} tracés chargés sur la carte`);
                     
                     gpxData.activities.forEach((activityGpx, index) => {
                         const activity = activitiesToDisplay.find(a => a.id === activityGpx.activity_id);
@@ -820,8 +910,6 @@
                                 weight: 3,
                                 opacity: 0.8
                             }).addTo(map);
-                            
-                            console.log(`🎨 Tracé ${activity.id} (${activity.type}): couleur ${getActivityColor(activity.type)}`);
 
                             polyline.bindPopup(`
                                 <strong>${activity.name}</strong><br>
@@ -840,12 +928,11 @@
                         map.fitBounds(group.getBounds().pad(0.1));
                     }
                 } else {
-                    console.warn('⚠️ Aucune activité avec données GPS trouvée');
                     // Fallback to demo data if no GPS data available
                     displayDemoTracksOnMap();
                 }
             } catch (error) {
-                console.error('Error loading GPS data:', error);
+                console.error('❌ Erreur chargement tracés GPS:', error);
                 // Fallback to demo data
                 displayDemoTracksOnMap();
             }
@@ -917,9 +1004,9 @@
             }
         }
 
-        async function filterActivitiesByDate() {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
+        function filterActivitiesByDateLeft() {
+            const startDate = document.getElementById('start-date-left').value;
+            const endDate = document.getElementById('end-date-left').value;
 
             if (!startDate || !endDate) {
                 alert('Veuillez sélectionner une date de début et une date de fin');
@@ -930,23 +1017,29 @@
                 alert('La date de début doit être antérieure à la date de fin');
                 return;
             }
-
-            // Réinitialiser les statistiques pendant le chargement
-            document.getElementById('total-activities').textContent = '-';
-            document.getElementById('total-distance').textContent = '-';
-            document.getElementById('total-time').textContent = '-';
-            document.getElementById('total-elevation').textContent = '-';
             
-            document.getElementById('activities-list').innerHTML = '<div class="loading">Filtrage en cours...</div>';
+            // Affichage temporaire de chargement (très rapide)
+            document.getElementById('activities-list').innerHTML = '<div class="loading">Filtrage local...</div>';
             
-            // Appliquer les filtres avec les nouvelles données
-            applyFiltersAndDisplay();
+            // Appliquer les filtres immédiatement (pas d'appel API)
+            setTimeout(() => {
+                applyFiltersAndDisplay();
+            }, 100); // Petit délai pour l'UX
         }
 
-        function resetDateFilter() {
+        function resetDateFilterLeft() {
             setDefaultDateRange();
-            document.getElementById('activity-type').value = '';
+            document.getElementById('activity-type-left').value = '';
             applyFiltersAndDisplay();
+        }
+        
+        // Legacy functions for compatibility
+        function filterActivitiesByDate() {
+            return filterActivitiesByDateLeft();
+        }
+        
+        function resetDateFilter() {
+            return resetDateFilterLeft();
         }
 
         function getActivityColor(activityType) {

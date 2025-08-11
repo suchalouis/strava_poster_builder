@@ -560,7 +560,7 @@ def register_routes(app):
             
             # Récupérer les données GPX pour chaque activité
             activities_gpx = []
-            print(f"🗺️ Récupération des données GPX pour {len(activity_ids)} activités: {activity_ids}")
+            print(f"🗺️ Récupération GPX: {len(activity_ids)} activités")
             
             for activity_id in activity_ids:
                 try:
@@ -570,12 +570,8 @@ def register_routes(app):
                             'activity_id': activity_id,
                             'coordinates': gpx_data
                         })
-                        print(f"✅ Activité {activity_id}: {len(gpx_data)} coordonnées récupérées")
-                    else:
-                        print(f"⚠️ Activité {activity_id}: aucune donnée GPS disponible")
                 except Exception as e:
                     # Continuer même si une activité échoue
-                    print(f"❌ Erreur pour l'activité {activity_id}: {e}")
                     continue
             
             print(f"📊 Au total: {len(activities_gpx)} activités avec données GPS sur {len(activity_ids)} demandées")

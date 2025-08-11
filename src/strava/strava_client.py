@@ -227,21 +227,14 @@ class StravaClient:
             List of [latitude, longitude] coordinates or None if no GPS data
         """
         try:
-            print(f"🌐 Récupération des streams pour l'activité {activity_id}")
             streams = self.get_activity_streams(activity_id, ['latlng'])
-            print(f"📊 Streams reçus: {streams}")
             
             if 'latlng' in streams and 'data' in streams['latlng']:
                 coordinates = streams['latlng']['data']
-                print(f"✅ {len(coordinates)} coordonnées GPS trouvées pour l'activité {activity_id}")
-                # Les données latlng sont sous forme [[lat1, lng1], [lat2, lng2], ...]
+                print(f"📍 Activité {activity_id}: {len(coordinates)} points GPS")
                 return coordinates
-            elif 'latlng' in streams:
-                print(f"❌ Stream latlng présent mais pas de données pour l'activité {activity_id}: {streams['latlng']}")
             else:
-                print(f"❌ Aucun stream latlng trouvé pour l'activité {activity_id}")
-            
-            return None
+                return None
             
         except Exception as e:
             print(f"❌ Erreur lors de la récupération des données GPS pour l'activité {activity_id}: {e}")
