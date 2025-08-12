@@ -223,10 +223,15 @@ Thumbs.db
 test_strava_data.json
 test_*.png
 test_*.pdf
+test_*.svg
 *_poster_*.pdf
 *_poster_*.png
+*_poster_*.svg
 collect_test_data.py
 collect_test_data_oauth.py
 test_poster_*.py
 get_access_token.py
 extract_token_from_session.py
+
+# Generated SVG files
+*.svg
