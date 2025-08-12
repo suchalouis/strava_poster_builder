@@ -15,10 +15,11 @@ import numpy as np
 class SVGGenerator:
     """Générateur de widgets SVG pour les posters"""
     
-    def __init__(self, template_path: str):
+    def __init__(self, template_path: str, debug_background: bool = True):
         self.template_path = template_path
         self.svg_tree = None
         self.svg_root = None
+        self.debug_background = debug_background  # Arrière-plan gris pour les tests
         
     def load_template(self) -> None:
         """Charger le template SVG"""
@@ -45,24 +46,25 @@ class SVGGenerator:
         stats_group = ET.Element('{http://www.w3.org/2000/svg}g')
         stats_group.set('id', 'stats-content')
         
-        # Style pour les textes de stats
+        # Style pour les textes de stats (plus petits pour s'adapter au widget)
         stats_style = {
             'font-family': 'Arial, sans-serif',
-            'font-size': '3.5mm',
+            'font-size': '4.5',
             'fill': '#333333',
-            'text-anchor': 'start'
+            'text-anchor': 'start',
+            'font-weight': 'bold'
         }
         
         label_style = {
             'font-family': 'Arial, sans-serif',
-            'font-size': '2.5mm',
+            'font-size': '3.5',
             'fill': '#666666',
             'text-anchor': 'start'
         }
         
-        # Position de base du widget stats
+        # Position de base du widget stats (ajusté pour être dans le widget)
         base_x = 8
-        base_y = 42
+        base_y = 45
         
         # Distance
         dist_label = ET.SubElement(stats_group, '{http://www.w3.org/2000/svg}text')
@@ -109,21 +111,21 @@ class SVGGenerator:
             speed_value.set(key, value)
         speed_value.text = f"{avg_speed:.1f} km/h"
         
-        # Dénivelé
+        # Dénivelé (colonne de droite)
         if elevation_gain > 0:
             elev_label = ET.SubElement(stats_group, '{http://www.w3.org/2000/svg}text')
-            elev_label.set('x', str(base_x + 35))
+            elev_label.set('x', str(base_x + 30))
             elev_label.set('y', str(base_y))
             for key, value in label_style.items():
                 elev_label.set(key, value)
-            elev_label.text = "Dénivelé +"
+            elev_label.text = "Dénivelé"
             
             elev_value = ET.SubElement(stats_group, '{http://www.w3.org/2000/svg}text')
-            elev_value.set('x', str(base_x + 35))
+            elev_value.set('x', str(base_x + 30))
             elev_value.set('y', str(base_y + 5))
             for key, value in stats_style.items():
                 elev_value.set(key, value)
-            elev_value.text = f"{int(elevation_gain)} m"
+            elev_value.text = f"+{int(elevation_gain)}m"
         
         # Ajouter le groupe à la racine SVG
         self.svg_root.append(stats_group)
@@ -142,8 +144,8 @@ class SVGGenerator:
         if not elevations:
             return ""
             
-        # Créer le graphique matplotlib
-        fig, ax = plt.subplots(figsize=(4, 1.5), dpi=100)
+        # Créer le graphique matplotlib (ajusté aux dimensions du widget map)
+        fig, ax = plt.subplots(figsize=(4, 1.2), dpi=100)
         
         # Calculer les distances cumulées (approximation)
         distances = []
@@ -162,13 +164,17 @@ class SVGGenerator:
         ax.fill_between(distances, elevations, alpha=0.6, color='#ff6b35')
         ax.plot(distances, elevations, color='#d63031', linewidth=1.5)
         
-        # Style
+        # Style (optimisé pour le widget)
         ax.set_xlim(0, max(distances))
-        ax.set_ylim(min(elevations) - 10, max(elevations) + 10)
-        ax.set_xlabel('Distance (km)', fontsize=8)
-        ax.set_ylabel('Altitude (m)', fontsize=8)
-        ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=6)
+        ax.set_ylim(min(elevations) - 5, max(elevations) + 5)
+        ax.set_xlabel('Distance (km)', fontsize=10)
+        ax.set_ylabel('Alt. (m)', fontsize=10)
+        ax.grid(True, alpha=0.3, linewidth=0.5)
+        ax.tick_params(labelsize=8)
+        
+        # Réduire les marges
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
         
         # Supprimer les marges
         plt.tight_layout(pad=0.1)
@@ -212,10 +218,10 @@ class SVGGenerator:
             try:
                 elevation_tree = ET.fromstring(elevation_svg)
                 
-                # Créer un groupe pour le profil d'altitude
+                # Créer un groupe pour le profil d'altitude (mieux positionné)
                 elevation_group = ET.Element('{http://www.w3.org/2000/svg}g')
                 elevation_group.set('id', 'elevation-profile')
-                elevation_group.set('transform', 'translate(74, 37) scale(0.85)')
+                elevation_group.set('transform', 'translate(74, 38) scale(0.55)')
                 
                 # Copier le contenu du SVG matplotlib
                 for child in elevation_tree:
@@ -309,13 +315,46 @@ class SVGGenerator:
         self.svg_root.append(start_circle)
         self.svg_root.append(end_circle)
     
+    def generate_title_widget(self, activity_data: Dict[str, Any]) -> None:
+        """
+        Générer le titre dynamique avec le nom de l'activité
+        Position: centré en haut (x=105, y=20)
+        """
+        activity_name = activity_data.get('name', 'Activité Strava')
+        
+        # Créer l'élément texte pour le titre
+        title_element = ET.Element('{http://www.w3.org/2000/svg}text')
+        title_element.set('class', 'title')
+        title_element.set('x', '105')
+        title_element.set('y', '20')
+        title_element.set('text-anchor', 'middle')
+        title_element.set('dominant-baseline', 'middle')
+        title_element.text = activity_name
+        
+        # Ajouter le titre à la racine SVG
+        self.svg_root.append(title_element)
+    
     def generate_poster(self, activity_data: Dict[str, Any]) -> str:
         """
         Générer le poster complet
         """
         self.load_template()
         
+        # Ajouter un arrière-plan gris pour les tests (si activé)
+        if self.debug_background:
+            background = ET.Element('{http://www.w3.org/2000/svg}rect')
+            background.set('x', '0')
+            background.set('y', '0')
+            background.set('width', '210')
+            background.set('height', '297')
+            background.set('fill', '#f5f5f5')
+            background.set('id', 'test-background')
+            
+            # Insérer l'arrière-plan en premier (avant les autres éléments)
+            self.svg_root.insert(0, background)
+        
         # Générer les widgets
+        self.generate_title_widget(activity_data)
         self.generate_stats_widget(activity_data)
         self.generate_elevation_widget(activity_data)
         self.generate_map_widget(activity_data)
