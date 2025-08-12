@@ -6,12 +6,28 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "cryptography>=45.0.6",
+    "email-validator>=2.2.0",
+    "fastapi>=0.116.1",
     "flask>=3.1.1",
     "flask-cors>=6.0.1",
     "flask-session>=0.8.0",
+    "folium>=0.20.0",
+    "geopandas>=1.1.1",
+    "gpxpy>=1.6.2",
+    "matplotlib>=3.10.5",
+    "osmnx>=2.0.6",
+    "passlib[bcrypt]>=1.7.4",
+    "pillow>=11.3.0",
+    "pydantic-settings>=2.10.1",
     "python-dotenv>=1.1.1",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.20",
     "redis>=6.4.0",
+    "reportlab>=4.4.3",
     "requests>=2.32.4",
+    "selenium>=4.34.2",
+    "uvicorn>=0.35.0",
+    "webdriver-manager>=4.0.2",
 ]
 
 [dependency-groups]

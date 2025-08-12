@@ -218,3 +218,15 @@ __marimo__/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Test data & outputs
+test_strava_data.json
+test_*.png
+test_*.pdf
+*_poster_*.pdf
+*_poster_*.png
+collect_test_data.py
+collect_test_data_oauth.py
+test_poster_*.py
+get_access_token.py
+extract_token_from_session.py
