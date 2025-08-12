@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="210mm" height="297mm" viewBox="0 0 210 297"
+     version="1.1" role="img" aria-label="Poster A4 - Grid Layout">
+
+  <style>
+    .title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 12mm;
+      fill: #000000;
+    }
+    .widget {
+      fill: none;
+      stroke: #000000;
+      stroke-width: 0.6;
+      vector-effect: non-scaling-stroke;
+    }
+  </style>
+
+  <!-- Titre -->
+  <text class="title" x="105" y="20" text-anchor="middle" dominant-baseline="middle">
+    Course à Pied
+  </text>
+
+  <!-- === Paramètres grille === -->
+  <!-- Marges latérales = 5 mm -->
+  <!-- Largeur totale utilisable : 210 - 2×5 = 200 mm -->
+  <!-- Colonne de base : 200 / 3 ≈ 66.67 mm -->
+
+  <!-- Ligne 1 : col1 ratio 1 -->
+  <rect id="widget-stats"
+        class="widget"
+        x="5" y="35"
+        width="66.67" height="50"
+        rx="4" ry="4" />
+
+  <!-- Ligne 1 : col2 ratio 2 -->
+  <rect id="widget-map"
+        class="widget"
+        x="71.67" y="35"
+        width="133.33" height="50"
+        rx="4" ry="4" />
+
+  <!-- Ligne 2 : grand widget (3 colonnes) -->
+  <rect id="widget-large"
+        class="widget"
+        x="5" y="95"
+        width="200" height="180"
+        rx="6" ry="6" />
+
+</svg>
