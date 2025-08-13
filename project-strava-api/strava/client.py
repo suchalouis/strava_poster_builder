@@ -574,3 +574,77 @@ class StravaClient:
             
         except Exception:
             return None
+    
+    def get_km_splits(self, activity_id: int) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get kilometer splits for an activity with enriched data
+        
+        Args:
+            activity_id: Strava activity ID
+            
+        Returns:
+            List of dictionaries with km split data or None if no splits available
+            Each dictionary contains:
+            - km: Kilometer number
+            - distance_m: Distance in meters
+            - elapsed_time_s: Elapsed time in seconds
+            - moving_time_s: Moving time in seconds
+            - pace_min_per_km: Pace in minutes per kilometer
+            - pace_formatted: Formatted pace as "M:SS"
+            - elevation_difference_m: Elevation change in meters
+            - average_speed_ms: Average speed in m/s
+        """
+        try:
+            # Get activity details including splits_metric
+            activity = self.get_activity_by_id(activity_id)
+            
+            if not activity or 'splits_metric' not in activity:
+                return None
+            
+            splits_metric = activity['splits_metric']
+            if not splits_metric:
+                return None
+            
+            enriched_splits = []
+            
+            for split in splits_metric:
+                # Extract basic data
+                km = split.get('split', 0)
+                distance_m = split.get('distance', 0)
+                elapsed_time_s = split.get('elapsed_time', 0)
+                moving_time_s = split.get('moving_time', 0)
+                elevation_difference_m = split.get('elevation_difference', 0)
+                average_speed_ms = split.get('average_speed', 0)
+                
+                # Calculate pace in minutes per kilometer
+                pace_min_per_km = 0
+                pace_formatted = "0:00"
+                
+                if average_speed_ms > 0:
+                    # pace = 1000 meters / (average_speed_ms * 60 seconds/minute)
+                    pace_min_per_km = 1000 / (average_speed_ms * 60)
+                    
+                    # Format as "M:SS"
+                    pace_minutes = int(pace_min_per_km)
+                    pace_seconds = int((pace_min_per_km - pace_minutes) * 60)
+                    pace_formatted = f"{pace_minutes}:{pace_seconds:02d}"
+                
+                enriched_split = {
+                    "km": km,
+                    "distance_m": distance_m,
+                    "elapsed_time_s": elapsed_time_s,
+                    "moving_time_s": moving_time_s,
+                    "pace_min_per_km": round(pace_min_per_km, 2),
+                    "pace_formatted": pace_formatted,
+                    "elevation_difference_m": elevation_difference_m,
+                    "average_speed_ms": average_speed_ms
+                }
+                
+                enriched_splits.append(enriched_split)
+            
+            return enriched_splits
+            
+        except StravaDataNotFoundException:
+            return None
+        except Exception:
+            return None

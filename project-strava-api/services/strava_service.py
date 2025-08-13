@@ -146,6 +146,15 @@ class StravaService:
             logger.error(f"Error getting activity {activity_id} for user {self.user.id}: {e}")
             raise
     
+    async def get_km_splits(self, activity_id: int) -> Optional[List[Dict[str, Any]]]:
+        """Récupérer les splits par kilomètre d'une activité avec données enrichies"""
+        try:
+            client = await self._get_strava_client()
+            return client.get_km_splits(activity_id)
+        except Exception as e:
+            logger.error(f"Error getting km splits for activity {activity_id} for user {self.user.id}: {e}")
+            return None
+    
     async def get_activity_gpx_data(self, activity_id: int) -> Optional[List[List[float]]]:
         """Récupérer les données GPS d'une activité"""
         try:
