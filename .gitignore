@@ -235,3 +235,6 @@ extract_token_from_session.py
 
 # Generated SVG files
 *.svg
+
+# Test repositories
+tests/
