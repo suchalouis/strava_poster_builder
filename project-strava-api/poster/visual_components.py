@@ -40,8 +40,9 @@ class VisualComponents:
                 return ""
             
             def format_pace(pace_decimal):
-                minutes = int(pace_decimal)
-                seconds = int((pace_decimal - minutes) * 60)
+                total_seconds = round(pace_decimal * 60)
+                minutes = total_seconds // 60
+                seconds = total_seconds % 60
                 return f"{minutes}:{seconds:02d}"
             
             # Inverser les valeurs d'allure pour que vitesse plus élevée = barre plus haute
@@ -63,9 +64,10 @@ class VisualComponents:
             else:
                 normalized_heights = [max_height / 2] * len(inverted_paces)
             
-            # Calculer les dimensions pour utiliser toute la largeur disponible
-            available_width = 85  # 95 - 10 (5 de chaque côté)
-            margin_left = 5
+            # Calculer les dimensions pour utiliser toute la largeur disponible en tenant compte de l'axe Y
+            y_axis_margin = 15  # Espace pour les labels de l'axe Y
+            available_width = 85 - y_axis_margin  # 95 - 10 (5 de chaque côté) - 15 pour axe Y
+            margin_left = 5 + y_axis_margin
             
             spacing = 0.5
             total_spacing = (len(distances) - 1) * spacing if len(distances) > 1 else 0
@@ -75,24 +77,64 @@ class VisualComponents:
             total_bars_width = len(distances) * bar_width + total_spacing
             start_x = margin_left + (available_width - total_bars_width) / 2
             
-            # Construire le SVG
-            svg_content = f'<g id="pace-histogram" transform="translate({start_x}, 5)">\n'
+            # Calculer les valeurs de l'axe Y (allures en intervalles de 10 secondes)
+            min_pace = min(paces)
+            max_pace = max(paces)
             
-            # Ajouter les barres
-            for i, (pace, height) in enumerate(zip(paces, normalized_heights)):
-                x = i * (bar_width + spacing)
+            # Convertir en secondes totales avec arrondi approprié
+            min_pace_seconds = round(min_pace * 60)
+            max_pace_seconds = round(max_pace * 60)
+            
+            # Ajuster aux intervalles de 10 secondes
+            min_y_seconds = (min_pace_seconds // 10) * 10
+            max_y_seconds = ((max_pace_seconds // 10) + 1) * 10
+            
+            # Créer les ticks de l'axe Y en secondes exactes
+            y_ticks_seconds = []
+            current_seconds = min_y_seconds
+            while current_seconds <= max_y_seconds:
+                y_ticks_seconds.append(current_seconds)
+                current_seconds += 10
+            
+            # Convertir en valeurs décimales pour les calculs de position
+            y_ticks = [seconds / 60.0 for seconds in y_ticks_seconds]
+            
+            # Construire le SVG
+            svg_content = f'<g id="pace-histogram" transform="translate({5}, 5)">\n'
+            
+            # Ajouter l'axe Y
+            y_axis_x = y_axis_margin - 2
+            svg_content += f'  <line x1="{y_axis_x}" y1="0" x2="{y_axis_x}" y2="{max_height}" '
+            svg_content += f'stroke="#333333" stroke-width="0.5"/>\n'
+            
+            # Ajouter les ticks et labels de l'axe Y
+            for i, tick_pace in enumerate(y_ticks):
+                if min_pace <= tick_pace <= max_pace:
+                    # Calculer la position Y du tick (aligné avec la logique d'inversion des barres)
+                    tick_y = ((tick_pace - min_pace) / (max_pace - min_pace)) * max_height
+                    
+                    # Ligne du tick
+                    svg_content += f'  <line x1="{y_axis_x - 1}" y1="{tick_y}" x2="{y_axis_x + 1}" y2="{tick_y}" '
+                    svg_content += f'stroke="#333333" stroke-width="0.5"/>\n'
+                    
+                    # Label du tick - utiliser les secondes exactes pour le formatage
+                    tick_seconds = y_ticks_seconds[i]
+                    tick_minutes = tick_seconds // 60
+                    tick_secs = tick_seconds % 60
+                    pace_label = f"{tick_minutes}:{tick_secs:02d}"
+                    
+                    svg_content += f'  <text x="{y_axis_x - 3}" y="{tick_y + 1}" '
+                    svg_content += f'font-family="Arial, sans-serif" font-size="2" font-weight="normal" '
+                    svg_content += f'fill="#333333" text-anchor="end">{pace_label}</text>\n'
+            
+            # Ajouter les barres (ajustées pour la nouvelle position)
+            bars_start_x = start_x - 5  # Compenser le translate initial
+            for i, height in enumerate(normalized_heights):
+                x = bars_start_x + i * (bar_width + spacing)
                 y = max_height - height
                 
                 svg_content += f'  <rect x="{x}" y="{y}" width="{bar_width}" height="{height}" '
                 svg_content += f'fill="#FC4C02" stroke="#D63A02" stroke-width="0.2" opacity="0.9"/>\n'
-            
-            # Ajouter les labels de rythme
-            label_y = max_height + 8
-            for i, pace in enumerate(paces):
-                x = i * (bar_width + spacing) + bar_width / 2
-                svg_content += f'  <text x="{x}" y="{label_y}" '
-                svg_content += f'font-family="Arial, sans-serif" font-size="2.5" font-weight="bold" '
-                svg_content += f'fill="#333333" text-anchor="middle">{format_pace(pace)}</text>\n'
             
             svg_content += '</g>'
             return svg_content
