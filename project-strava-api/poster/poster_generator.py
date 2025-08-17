@@ -10,6 +10,7 @@ import logging
 from .template_manager import TemplateManager
 from .visual_components import VisualComponents
 from .formatters import DataFormatters
+from .color_palette import ColorPalette, create_default_palette
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +26,17 @@ class PosterGenerator:
     - Assemblage final du poster
     """
     
-    def __init__(self, template_path: Optional[str] = None):
+    def __init__(self, template_path: Optional[str] = None, color_palette: Optional[ColorPalette] = None):
         """
         Initialise le générateur de posters
         
         Args:
             template_path: Chemin vers le template SVG (optionnel)
+            color_palette: Palette de couleurs personnalisée (optionnel)
         """
         self.template_manager = TemplateManager(template_path)
-        self.visual_components = VisualComponents()
+        self.color_palette = color_palette or create_default_palette()
+        self.visual_components = VisualComponents(self.color_palette)
         self.formatters = DataFormatters()
     
     def generate_poster(self, activity_data: Dict[str, Any]) -> str:
@@ -61,7 +64,11 @@ class PosterGenerator:
             # 3. Ajouter les composants visuels aux remplacements
             replacements.update(visual_components)
             
-            # 4. Créer le contenu SVG final
+            # 4. Ajouter les placeholders de couleurs
+            color_placeholders = self.color_palette.get_template_placeholders()
+            replacements.update(color_placeholders)
+            
+            # 5. Créer le contenu SVG final
             poster_content = self.template_manager.create_poster_content(replacements)
             
             logger.info("Poster généré avec succès")
@@ -132,7 +139,8 @@ class PosterGenerator:
                     center_y = gpx_track_dims.get('height', 120.0) / 2
                 else:
                     center_x, center_y = 85, 60
-                error_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="#999" text-anchor="middle">Erreur GPS</text>'
+                error_color = self.color_palette.get_secondary_text_color()
+                error_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="{error_color}" text-anchor="middle">Erreur GPS</text>'
                 components['GPX_TRACK'] = error_text
                 components['GPS_MAP'] = error_text
                 components['GPX_TRACK_ALT'] = ""
@@ -144,7 +152,8 @@ class PosterGenerator:
                 center_y = gpx_track_dims.get('height', 120.0) / 2
             else:
                 center_x, center_y = 85, 60
-            no_data_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="#999" text-anchor="middle">Pas de données GPS</text>'
+            error_color = self.color_palette.get_secondary_text_color()
+            no_data_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="{error_color}" text-anchor="middle">Pas de données GPS</text>'
             components['GPX_TRACK'] = no_data_text
             components['GPS_MAP'] = no_data_text
             components['GPX_TRACK_ALT'] = ""
