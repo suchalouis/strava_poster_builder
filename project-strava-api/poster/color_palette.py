@@ -24,16 +24,20 @@ class ColorPalette:
         
         Args:
             color_dict: Dictionnaire avec les couleurs personnalisées
-                       {first_color, second_color, third_color, fourth_color, fifth_color}
+                       {background, primary, secondary, third, fourth, start_point, end_point, graph_color, map_color}
                        Toutes les couleurs sont optionnelles
         """
         # Couleurs par défaut (actuelles du système)
         self._default_colors = {
-            'first_color': '#FC4C02',    # Orange Strava principal (tracés, barres)
-            'second_color': '#22C55E',   # Vert (point de départ)
-            'third_color': '#EF4444',    # Rouge (point d'arrivée)
-            'fourth_color': '#333333',   # Gris foncé (axes, labels)
-            'fifth_color': '#999999'     # Gris clair (erreurs, textes secondaires)
+            'background': '#F8F8F8',     # Arrière-plan clair
+            'primary': '#FC4C02',        # Orange Strava principal (tracés, barres)
+            'secondary': '#E74C3C',      # Rouge d'accentuation
+            'third': '#3498DB',          # Bleu d'accentuation 2
+            'fourth': '#34495E',         # Gris anthracite d'accentuation 3
+            'start_point': '#22C55E',    # Vert (point de départ)
+            'end_point': '#EF4444',      # Rouge (point d'arrivée)
+            'graph_color': '#FC4C02',    # Couleur pour les graphiques (histogramme, profil d'élévation)
+            'map_color': '#FC4C02'       # Couleur pour la carte (tracé GPS)
         }
         
         # Stocker les couleurs personnalisées
@@ -51,7 +55,7 @@ class ColorPalette:
         Raises:
             ValueError: Si une couleur n'est pas au format hexadécimal valide
         """
-        valid_keys = {'first_color', 'second_color', 'third_color', 'fourth_color', 'fifth_color'}
+        valid_keys = {'background', 'primary', 'secondary', 'third', 'fourth', 'start_point', 'end_point', 'graph_color', 'map_color'}
         
         for key, color in color_dict.items():
             if key not in valid_keys:
@@ -99,25 +103,41 @@ class ColorPalette:
         else:  # Format #RRGGBB
             return color.upper()
     
+    def get_background_color(self) -> str:
+        """Couleur d'arrière-plan"""
+        return self._custom_colors.get('background', self._default_colors['background'])
+    
     def get_primary_color(self) -> str:
         """Couleur principale (tracés, barres d'histogramme)"""
-        return self._custom_colors.get('first_color', self._default_colors['first_color'])
+        return self._custom_colors.get('primary', self._default_colors['primary'])
+    
+    def get_secondary_color(self) -> str:
+        """Couleur secondaire d'accentuation"""
+        return self._custom_colors.get('secondary', self._default_colors['secondary'])
+    
+    def get_third_color(self) -> str:
+        """Couleur d'accentuation 2"""
+        return self._custom_colors.get('third', self._default_colors['third'])
+    
+    def get_fourth_color(self) -> str:
+        """Couleur d'accentuation 3 (axes, labels)"""
+        return self._custom_colors.get('fourth', self._default_colors['fourth'])
     
     def get_start_point_color(self) -> str:
         """Couleur du point de départ"""
-        return self._custom_colors.get('second_color', self._default_colors['second_color'])
+        return self._custom_colors.get('start_point', self._default_colors['start_point'])
     
     def get_end_point_color(self) -> str:
         """Couleur du point d'arrivée"""
-        return self._custom_colors.get('third_color', self._default_colors['third_color'])
+        return self._custom_colors.get('end_point', self._default_colors['end_point'])
     
-    def get_axis_color(self) -> str:
-        """Couleur des axes et labels"""
-        return self._custom_colors.get('fourth_color', self._default_colors['fourth_color'])
+    def get_graph_color(self) -> str:
+        """Couleur pour les graphiques (histogramme, profil d'élévation)"""
+        return self._custom_colors.get('graph_color', self._default_colors['graph_color'])
     
-    def get_secondary_text_color(self) -> str:
-        """Couleur des textes secondaires et messages d'erreur"""
-        return self._custom_colors.get('fifth_color', self._default_colors['fifth_color'])
+    def get_map_color(self) -> str:
+        """Couleur pour la carte (tracé GPS)"""
+        return self._custom_colors.get('map_color', self._default_colors['map_color'])
     
     def get_stroke_color(self) -> str:
         """Couleur des bordures (version plus foncée de la couleur principale)"""
@@ -213,12 +233,16 @@ class ColorPalette:
             Dictionnaire des placeholders de couleurs pour les templates
         """
         return {
+            'COLOR_BACKGROUND': self.get_background_color(),
             'COLOR_PRIMARY': self.get_primary_color(),
+            'COLOR_SECONDARY': self.get_secondary_color(),
+            'COLOR_THIRD': self.get_third_color(),
+            'COLOR_FOURTH': self.get_fourth_color(),
             'COLOR_START': self.get_start_point_color(),
             'COLOR_END': self.get_end_point_color(),
-            'COLOR_AXIS': self.get_axis_color(),
-            'COLOR_SECONDARY': self.get_secondary_text_color(),
-            'COLOR_STROKE': self.get_stroke_color()
+            'COLOR_STROKE': self.get_stroke_color(),
+            'COLOR_GRAPH': self.get_graph_color(),
+            'COLOR_MAP': self.get_map_color()
         }
     
     def __str__(self) -> str:
@@ -238,35 +262,51 @@ def create_default_palette() -> ColorPalette:
     return ColorPalette()
 
 
-def create_custom_palette(first_color: Optional[str] = None,
-                         second_color: Optional[str] = None,
-                         third_color: Optional[str] = None,
-                         fourth_color: Optional[str] = None,
-                         fifth_color: Optional[str] = None) -> ColorPalette:
+def create_custom_palette(background: Optional[str] = None,
+                         primary: Optional[str] = None,
+                         secondary: Optional[str] = None,
+                         third: Optional[str] = None,
+                         fourth: Optional[str] = None,
+                         start_point: Optional[str] = None,
+                         end_point: Optional[str] = None,
+                         graph_color: Optional[str] = None,
+                         map_color: Optional[str] = None) -> ColorPalette:
     """
     Crée une palette avec des couleurs personnalisées
     
     Args:
-        first_color: Couleur principale (tracés, barres)
-        second_color: Couleur point de départ
-        third_color: Couleur point d'arrivée
-        fourth_color: Couleur axes et labels
-        fifth_color: Couleur textes secondaires
+        background: Couleur d'arrière-plan
+        primary: Couleur principale (tracés, barres)
+        secondary: Couleur d'accentuation
+        third: Couleur d'accentuation 2
+        fourth: Couleur d'accentuation 3 (axes, labels)
+        start_point: Couleur point de départ
+        end_point: Couleur point d'arrivée
+        graph_color: Couleur pour les graphiques (histogramme, profil d'élévation)
+        map_color: Couleur pour la carte (tracé GPS)
         
     Returns:
         Palette de couleurs personnalisée
     """
     color_dict = {}
     
-    if first_color:
-        color_dict['first_color'] = first_color
-    if second_color:
-        color_dict['second_color'] = second_color
-    if third_color:
-        color_dict['third_color'] = third_color
-    if fourth_color:
-        color_dict['fourth_color'] = fourth_color
-    if fifth_color:
-        color_dict['fifth_color'] = fifth_color
+    if background:
+        color_dict['background'] = background
+    if primary:
+        color_dict['primary'] = primary
+    if secondary:
+        color_dict['secondary'] = secondary
+    if third:
+        color_dict['third'] = third
+    if fourth:
+        color_dict['fourth'] = fourth
+    if start_point:
+        color_dict['start_point'] = start_point
+    if end_point:
+        color_dict['end_point'] = end_point
+    if graph_color:
+        color_dict['graph_color'] = graph_color
+    if map_color:
+        color_dict['map_color'] = map_color
     
     return ColorPalette(color_dict)

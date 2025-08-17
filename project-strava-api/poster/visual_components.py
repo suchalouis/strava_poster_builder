@@ -178,7 +178,7 @@ class VisualComponents:
             
             # Ajouter l'axe Y
             y_axis_x = y_axis_margin - 2
-            axis_color = self.color_palette.get_axis_color()
+            axis_color = self.color_palette.get_fourth_color()
             svg_content += f'  <line x1="{y_axis_x}" y1="0" x2="{y_axis_x}" y2="{chart_height}" '
             svg_content += f'stroke="{axis_color}" stroke-width="0.5"/>\n'
             
@@ -208,10 +208,10 @@ class VisualComponents:
                 x = bars_start_x + i * (bar_width + spacing)
                 y = chart_height - height
                 
-                primary_color = self.color_palette.get_primary_color()
+                graph_color = self.color_palette.get_graph_color()
                 stroke_color = self.color_palette.get_stroke_color()
                 svg_content += f'  <rect x="{x}" y="{y}" width="{bar_width}" height="{height}" '
-                svg_content += f'fill="{primary_color}" stroke="{stroke_color}" stroke-width="0.2" opacity="0.9"/>\n'
+                svg_content += f'fill="{graph_color}" stroke="{stroke_color}" stroke-width="0.2" opacity="0.9"/>\n'
             
             svg_content += '</g>'
             return svg_content
@@ -250,7 +250,7 @@ class VisualComponents:
             center_y = map_height / 2
             
             if not coordinates or len(coordinates) < 2:
-                error_color = self.color_palette.get_secondary_text_color()
+                error_color = self.color_palette.get_fourth_color()
                 return f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="{error_color}" text-anchor="middle">Pas de données GPS</text>'
             
             # Calculer les limites géographiques
@@ -285,13 +285,13 @@ class VisualComponents:
             circle_radius = max(2, min(map_width, map_height) * 0.015)  # Proportionnel à la taille
             
             # Utiliser les couleurs de la palette
-            primary_color = self.color_palette.get_primary_color()
+            map_color = self.color_palette.get_map_color()
             start_color = self.color_palette.get_start_point_color()
             end_color = self.color_palette.get_end_point_color()
             
             svg_content = f'''<g id="gps-track">
   <path d="{path_data}" 
-        stroke="{primary_color}" stroke-width="{stroke_width}" fill="none" 
+        stroke="{map_color}" stroke-width="{stroke_width}" fill="none" 
         stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
   <circle cx="{svg_points[0].split(',')[0]}" cy="{svg_points[0].split(',')[1]}" 
           r="{circle_radius}" fill="{start_color}" stroke="white" stroke-width="0.5"/>
@@ -309,7 +309,7 @@ class VisualComponents:
                 center_y = dimensions.get('height', 120.0) / 2
             else:
                 center_x, center_y = 85, 60
-            error_color = self.color_palette.get_secondary_text_color()
+            error_color = self.color_palette.get_fourth_color()
             return f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="{error_color}" text-anchor="middle">Erreur GPS</text>'
     
     def create_elevation_profile_svg(self, coordinates: List[Tuple[float, float, float]], dimensions: Optional[Dict[str, float]] = None) -> str:
@@ -390,14 +390,14 @@ class VisualComponents:
             circle_stroke = max(1, min(track_width, track_height) * 0.008)
             
             # Utiliser les couleurs de la palette
-            primary_color = self.color_palette.get_primary_color()
+            map_color = self.color_palette.get_map_color()
             start_color = self.color_palette.get_start_point_color()
             end_color = self.color_palette.get_end_point_color()
             
             # Générer le SVG avec centrage
             svg_elements = [
                 f'<g transform="translate({margin_x:.1f}, {margin_y:.1f})">',
-                f'  <path d="{track_path}" fill="none" stroke="{primary_color}" stroke-width="{stroke_width}" stroke-linecap="round"/>',
+                f'  <path d="{track_path}" fill="none" stroke="{map_color}" stroke-width="{stroke_width}" stroke-linecap="round"/>',
                 f'  <circle cx="{start_x:.1f}" cy="{start_y:.1f}" r="{circle_radius}" fill="{start_color}" stroke="white" stroke-width="{circle_stroke}"/>',
                 f'  <circle cx="{end_x:.1f}" cy="{end_y:.1f}" r="{circle_radius}" fill="{end_color}" stroke="white" stroke-width="{circle_stroke}"/>',
                 '</g>'
@@ -626,7 +626,7 @@ class VisualComponents:
                     f'  <!-- Carte OSM de fond (zoom {zoom_level}, {tiles_fetched} tuiles) -->',
                     f'  <image x="0" y="0" width="{map_width}" height="{map_height}" href="data:image/png;base64,{img_b64}"/>',
                     f'  <!-- Tracé GPX superposé -->',
-                    f'  <path d="{path_data}" fill="none" stroke="{self.color_palette.get_primary_color()}" stroke-width="{stroke_width}" stroke-linecap="round" opacity="0.9"/>',
+                    f'  <path d="{path_data}" fill="none" stroke="{self.color_palette.get_map_color()}" stroke-width="{stroke_width}" stroke-linecap="round" opacity="0.9"/>',
                     f'  <circle cx="{start_x:.1f}" cy="{start_y:.1f}" r="{circle_radius}" fill="{self.color_palette.get_start_point_color()}" stroke="white" stroke-width="2"/>',
                     f'  <circle cx="{end_x:.1f}" cy="{end_y:.1f}" r="{circle_radius}" fill="{self.color_palette.get_end_point_color()}" stroke="white" stroke-width="2"/>',
                     '</g>'
@@ -726,7 +726,7 @@ class VisualComponents:
             circle_stroke = max(1, min(track_width, track_height) * 0.008)
             
             # Utiliser les couleurs de la palette
-            primary_color = self.color_palette.get_primary_color()
+            map_color = self.color_palette.get_map_color()
             start_color = self.color_palette.get_start_point_color()
             end_color = self.color_palette.get_end_point_color()
             
@@ -734,7 +734,7 @@ class VisualComponents:
             svg_elements = [
                 f'<g transform="translate({margin_x:.1f}, {margin_y:.1f})">',
                 f'  <!-- Tracé GPX avec correction Mercator (lat_moy={lat_moyenne:.2f}°, ratio_geo={track_aspect_ratio:.2f}) -->',
-                f'  <path d="{track_path}" fill="none" stroke="{primary_color}" stroke-width="{stroke_width}" stroke-linecap="round"/>',
+                f'  <path d="{track_path}" fill="none" stroke="{map_color}" stroke-width="{stroke_width}" stroke-linecap="round"/>',
                 f'  <circle cx="{start_x:.1f}" cy="{start_y:.1f}" r="{circle_radius}" fill="{start_color}" stroke="white" stroke-width="{circle_stroke}"/>',
                 f'  <circle cx="{end_x:.1f}" cy="{end_y:.1f}" r="{circle_radius}" fill="{end_color}" stroke="white" stroke-width="{circle_stroke}"/>',
                 '</g>'
@@ -812,13 +812,13 @@ class VisualComponents:
             circle_stroke = max(1, min(track_width, track_height) * 0.008)
             
             # Utiliser les couleurs de la palette
-            primary_color = self.color_palette.get_primary_color()
+            map_color = self.color_palette.get_map_color()
             start_color = self.color_palette.get_start_point_color()
             end_color = self.color_palette.get_end_point_color()
             
             # Générer le SVG
             svg_elements = [
-                f'<path d="{track_path}" fill="none" stroke="{primary_color}" stroke-width="{stroke_width}" stroke-linecap="round"/>',
+                f'<path d="{track_path}" fill="none" stroke="{map_color}" stroke-width="{stroke_width}" stroke-linecap="round"/>',
                 f'<circle cx="{start_x:.1f}" cy="{start_y:.1f}" r="{circle_radius}" fill="{start_color}" stroke="white" stroke-width="{circle_stroke}"/>',
                 f'<circle cx="{end_x:.1f}" cy="{end_y:.1f}" r="{circle_radius}" fill="{end_color}" stroke="white" stroke-width="{circle_stroke}"/>'
             ]
@@ -1046,7 +1046,7 @@ class VisualComponents:
                     f'  <!-- Carte OSM de fond (zoom {zoom_level}, {tiles_fetched} tuiles) -->',
                     f'  <image x="0" y="0" width="{map_width}" height="{map_height}" href="data:image/png;base64,{img_b64}"/>',
                     f'  <!-- Tracé GPX superposé -->',
-                    f'  <path d="{path_data}" fill="none" stroke="{self.color_palette.get_primary_color()}" stroke-width="{stroke_width}" stroke-linecap="round" opacity="0.9"/>',
+                    f'  <path d="{path_data}" fill="none" stroke="{self.color_palette.get_map_color()}" stroke-width="{stroke_width}" stroke-linecap="round" opacity="0.9"/>',
                     f'  <circle cx="{start_x:.1f}" cy="{start_y:.1f}" r="{circle_radius}" fill="{self.color_palette.get_start_point_color()}" stroke="white" stroke-width="2"/>',
                     f'  <circle cx="{end_x:.1f}" cy="{end_y:.1f}" r="{circle_radius}" fill="{self.color_palette.get_end_point_color()}" stroke="white" stroke-width="2"/>',
                     '</g>'

@@ -139,7 +139,7 @@ class PosterGenerator:
                     center_y = gpx_track_dims.get('height', 120.0) / 2
                 else:
                     center_x, center_y = 85, 60
-                error_color = self.color_palette.get_secondary_text_color()
+                error_color = self.color_palette.get_fourth_color()
                 error_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="{error_color}" text-anchor="middle">Erreur GPS</text>'
                 components['GPX_TRACK'] = error_text
                 components['GPS_MAP'] = error_text
@@ -152,7 +152,7 @@ class PosterGenerator:
                 center_y = gpx_track_dims.get('height', 120.0) / 2
             else:
                 center_x, center_y = 85, 60
-            error_color = self.color_palette.get_secondary_text_color()
+            error_color = self.color_palette.get_fourth_color()
             no_data_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="{error_color}" text-anchor="middle">Pas de données GPS</text>'
             components['GPX_TRACK'] = no_data_text
             components['GPS_MAP'] = no_data_text
