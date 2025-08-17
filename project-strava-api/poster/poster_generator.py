@@ -83,10 +83,19 @@ class PosterGenerator:
         """
         components = {}
         
+        # Extraire les dimensions des placeholders depuis le template
+        try:
+            placeholder_dimensions = self.template_manager.extract_placeholder_dimensions()
+            logger.debug(f"Dimensions extraites du template: {placeholder_dimensions}")
+        except Exception as e:
+            logger.warning(f"Erreur lors de l'extraction des dimensions: {e}")
+            placeholder_dimensions = {}
+        
         # Histogramme d'allure (splits km)
         if activity_data.get('km_splits'):
             try:
-                pace_histogram = self.visual_components.create_pace_histogram_svg(activity_data)
+                custom_graph_dims = placeholder_dimensions.get('CUSTOM_GRAPH')
+                pace_histogram = self.visual_components.create_pace_histogram_svg(activity_data, custom_graph_dims)
                 components['CUSTOM_GRAPH'] = pace_histogram
                 components['PACE_HISTOGRAM'] = pace_histogram  # Alias alternatif
             except Exception as e:
@@ -100,34 +109,52 @@ class PosterGenerator:
         # Carte GPS / Tracé GPX
         if activity_data.get('coordinates'):
             try:
+                gpx_track_dims = placeholder_dimensions.get('GPX_TRACK')
+                
                 # Utiliser la méthode principale pour la carte GPS
-                gps_map = self.visual_components.create_gps_map_svg(activity_data)
+                gps_map = self.visual_components.create_gps_map_svg(activity_data, gpx_track_dims)
                 components['GPX_TRACK'] = gps_map
                 components['GPS_MAP'] = gps_map  # Alias alternatif
                 
                 # Alternative avec tracé GPX (pour compatibilité)
                 coordinates_with_elevation = activity_data['coordinates']
                 if len(coordinates_with_elevation[0]) >= 3:
-                    gpx_track = self.visual_components.create_gpx_track_svg(coordinates_with_elevation)
+                    gpx_track = self.visual_components.create_gpx_track_svg(coordinates_with_elevation, gpx_track_dims)
                     components['GPX_TRACK_ALT'] = gpx_track
                 else:
                     components['GPX_TRACK_ALT'] = gps_map
                     
             except Exception as e:
                 logger.warning(f"Erreur lors de la génération de la carte GPS: {e}")
-                components['GPX_TRACK'] = '<text x="85" y="60" font-family="Arial" font-size="3" fill="#999" text-anchor="middle">Erreur GPS</text>'
-                components['GPS_MAP'] = components['GPX_TRACK']
+                # Utiliser les dimensions pour les messages d'erreur
+                if gpx_track_dims:
+                    center_x = gpx_track_dims.get('width', 170.0) / 2
+                    center_y = gpx_track_dims.get('height', 120.0) / 2
+                else:
+                    center_x, center_y = 85, 60
+                error_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="#999" text-anchor="middle">Erreur GPS</text>'
+                components['GPX_TRACK'] = error_text
+                components['GPS_MAP'] = error_text
                 components['GPX_TRACK_ALT'] = ""
         else:
-            components['GPX_TRACK'] = '<text x="85" y="60" font-family="Arial" font-size="3" fill="#999" text-anchor="middle">Pas de données GPS</text>'
-            components['GPS_MAP'] = components['GPX_TRACK']
+            # Utiliser les dimensions pour les messages de fallback
+            gpx_track_dims = placeholder_dimensions.get('GPX_TRACK')
+            if gpx_track_dims:
+                center_x = gpx_track_dims.get('width', 170.0) / 2
+                center_y = gpx_track_dims.get('height', 120.0) / 2
+            else:
+                center_x, center_y = 85, 60
+            no_data_text = f'<text x="{center_x}" y="{center_y}" font-family="Arial" font-size="3" fill="#999" text-anchor="middle">Pas de données GPS</text>'
+            components['GPX_TRACK'] = no_data_text
+            components['GPS_MAP'] = no_data_text
             components['GPX_TRACK_ALT'] = ""
         
         # Profil d'altitude
         coordinates = activity_data.get('coordinates', [])
         if coordinates and len(coordinates) > 0 and len(coordinates[0]) >= 3:
             try:
-                elevation_profile = self.visual_components.create_elevation_profile_svg(coordinates)
+                elevation_dims = placeholder_dimensions.get('ELEVATION_PROFILE')
+                elevation_profile = self.visual_components.create_elevation_profile_svg(coordinates, elevation_dims)
                 components['ELEVATION_PROFILE'] = elevation_profile
             except Exception as e:
                 logger.warning(f"Erreur lors de la génération du profil d'altitude: {e}")

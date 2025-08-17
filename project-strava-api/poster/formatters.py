@@ -3,8 +3,11 @@ Formateurs de données pour les posters Strava
 Contient les méthodes de formatage des statistiques et données d'activité
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DataFormatters:
@@ -152,6 +155,79 @@ class DataFormatters:
             return date_str  # Retourner la chaîne originale en cas d'erreur
     
     @staticmethod
+    def format_date_french(date_str: str) -> str:
+        """
+        Formate une date au format français DD MMMM YYYY
+        
+        Args:
+            date_str: Date au format ISO (ex: "2025-08-16T16:15:39Z")
+            
+        Returns:
+            Date formatée (ex: "16 août 2025")
+        """
+        try:
+            # Parser la date ISO
+            if 'T' in date_str:
+                # Enlever le timezone indicator si présent
+                clean_date = date_str.replace('Z', '+00:00')
+                date_obj = datetime.fromisoformat(clean_date)
+            else:
+                date_obj = datetime.fromisoformat(date_str)
+            
+            # Noms des mois en français
+            months_french = [
+                'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+            ]
+            
+            month_name = months_french[date_obj.month - 1]
+            return f"{date_obj.day} {month_name} {date_obj.year}"
+            
+        except Exception as e:
+            logger.warning(f"Erreur formatage date française '{date_str}': {e}")
+            return "Date inconnue"
+    
+    @staticmethod
+    def get_start_city(activity_data: Dict[str, Any]) -> str:
+        """
+        Récupère le nom de la ville de départ à partir des coordonnées GPS
+        
+        Args:
+            activity_data: Données de l'activité contenant start_latlng
+            
+        Returns:
+            Nom de la ville de départ ou message de fallback
+        """
+        try:
+            # Récupérer les coordonnées de départ
+            start_latlng = activity_data.get('start_latlng')
+            
+            if not start_latlng:
+                logger.debug("Pas de coordonnées start_latlng dans l'activité")
+                return "Lieu inconnu"
+            
+            # Importer le service de géocodage ici pour éviter les imports circulaires
+            try:
+                from ..services.geocoding_service import get_geocoding_service
+            except ImportError:
+                # Import alternatif pour les tests standalone
+                from services.geocoding_service import get_geocoding_service
+            
+            geocoding_service = get_geocoding_service()
+            city_name = geocoding_service.get_city_from_coordinates(start_latlng)
+            
+            return city_name
+            
+        except Exception as e:
+            logger.error(f"Erreur récupération ville de départ: {e}")
+            # En cas d'erreur géocodage, utiliser un fallback simple basé sur les coordonnées
+            try:
+                latitude, longitude = start_latlng[0], start_latlng[1]
+                return f"Lat {latitude:.3f}, Lon {longitude:.3f}"
+            except:
+                return "Lieu inconnu"
+    
+    @staticmethod
     def format_activity_type_french(activity_type: str) -> str:
         """
         Traduit les types d'activité Strava en français
@@ -207,6 +283,18 @@ class DataFormatters:
         # Ajouter la date si disponible
         if 'start_date' in activity_data:
             replacements['ACTIVITY_DATE'] = DataFormatters.format_date(activity_data['start_date'])
+        
+        # Ajouter la ville de départ (CITY) à partir des coordonnées GPS
+        replacements['CITY'] = DataFormatters.get_start_city(activity_data)
+        
+        # Ajouter la date française (DATE) à partir de start_date_local
+        if 'start_date_local' in activity_data:
+            replacements['DATE'] = DataFormatters.format_date_french(activity_data['start_date_local'])
+        elif 'start_date' in activity_data:
+            # Fallback sur start_date si start_date_local n'est pas disponible
+            replacements['DATE'] = DataFormatters.format_date_french(activity_data['start_date'])
+        else:
+            replacements['DATE'] = "Date inconnue"
         
         # Ajouter la vitesse moyenne si calculable
         if activity_data.get('distance', 0) > 0 and activity_data.get('moving_time', 0) > 0:

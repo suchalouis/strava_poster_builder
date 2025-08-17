@@ -37,6 +37,7 @@ setup(
     install_requires=[
         "requests>=2.32.4",
         "python-dotenv>=1.1.1",
+        "aiohttp>=3.8.0",
     ],
     
     # Zip safe
